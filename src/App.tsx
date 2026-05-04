@@ -1,151 +1,183 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+import React, { useState } from "react";
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { cn } from './lib/utils';
-import { onSnapshot, doc } from 'firebase/firestore';
-import { db } from './lib/firebase';
-import { OperationType } from './types';
-import { handleFirestoreError } from './lib/firebase-utils';
+type Staff = {
+  id: string;
+  name: string;
+  points: number;
+};
 
-// Components
-import Sidebar from './components/Sidebar';
-import StaffManager from './components/StaffManager';
-import AdvanceManager from './components/AdvanceManager';
-import TipBoxInventory from './components/TipBoxInventory';
-import EarningsCalculator from './components/EarningsCalculator';
-import PayoutMatrix from './components/PayoutMatrix';
-import BackupRestore from './components/BackupRestore';
+type Advance = {
+  staffId: string;
+  amount: number;
+};
 
-import { Table } from 'lucide-react';
+type Penalty = {
+  id: string;
+  staffId: string;
+  staffName: string;
+  date: string;
+  reason: string;
+  amount: number;
+  checkedBy: string;
+};
 
-enum ActiveTab {
-  Dashboard = 'dashboard',
-  Staff = 'staff',
-  Advances = 'advances',
-  Inventory = 'inventory',
-  Payouts = 'payouts',
-  Settings = 'settings'
-}
+const initialStaff: Staff[] = [
+  { id: "1", name: "Tej", points: 5 },
+  { id: "2", name: "Sameer", points: 5 },
+  { id: "3", name: "Tarak", points: 3 },
+];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>(ActiveTab.Dashboard);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [appSettings, setAppSettings] = useState({ name: 'TIPS PRO', subtitle: 'EVEREST DEVS' });
+  const [staff] = useState<Staff[]>(initialStaff);
+  const [advances, setAdvances] = useState<Advance[]>([]);
+  const [penalties, setPenalties] = useState<Penalty[]>([]);
 
-  useEffect(() => {
-    const unsub = onSnapshot(
-      doc(db, 'settings', 'current'), 
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          setAppSettings({ 
-            name: (data.appName || 'TIPS PRO').toUpperCase(), 
-            subtitle: (data.subtitle || 'EVEREST DEVS').toUpperCase() 
-          });
-        }
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.GET, 'settings/current');
-      }
-    );
-    return () => unsub();
-  }, []);
+  const [form, setForm] = useState({
+    staffId: "",
+    reason: "",
+    amount: "",
+    checkedBy: "",
+    date: new Date().toISOString().split("T")[0],
+  });
 
-  // Auto-collapse sidebar on small screens
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) setIsCollapsed(true);
-      else setIsCollapsed(false);
+  const totalPoints = staff.reduce((a, b) => a + b.points, 0);
+  const totalPool = 5000; // example total tips
+  const perPoint = totalPool / totalPoints;
+
+  const addPenalty = () => {
+    if (!form.staffId || !form.amount) return;
+
+    const selected = staff.find((s) => s.id === form.staffId);
+
+    const newPenalty: Penalty = {
+      id: Date.now().toString(),
+      staffId: form.staffId,
+      staffName: selected?.name || "",
+      reason: form.reason,
+      amount: Number(form.amount),
+      checkedBy: form.checkedBy,
+      date: form.date,
     };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+
+    setPenalties([...penalties, newPenalty]);
+
+    setForm({
+      staffId: "",
+      reason: "",
+      amount: "",
+      checkedBy: "",
+      date: new Date().toISOString().split("T")[0],
+    });
+  };
+
+  const getAdvance = (id: string) =>
+    advances.filter((a) => a.staffId === id).reduce((s, a) => s + a.amount, 0);
+
+  const getPenalty = (id: string) =>
+    penalties.filter((p) => p.staffId === id).reduce((s, p) => s + p.amount, 0);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex">
-      <Sidebar 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
-        isCollapsed={isCollapsed} 
-        setIsCollapsed={setIsCollapsed}
-        appName={appSettings.name}
-        subtitle={appSettings.subtitle}
+    <div style={{ padding: 20 }}>
+      <h1>Tips Manager (By Everest Developers)</h1>
+
+      {/* PENALTY FORM */}
+      <h2>Penalty Entry</h2>
+
+      <input
+        type="date"
+        value={form.date}
+        onChange={(e) => setForm({ ...form, date: e.target.value })}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
-        {/* Top Header */}
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-40">
-          <div className="flex flex-col">
-            <h2 className="text-sm font-black text-slate-400 tracking-[0.2em] uppercase">
-              {activeTab.replace('-', ' ')}
-            </h2>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-xs font-bold text-slate-800">Operational</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="px-3 py-1.5 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 tracking-wider">
-              {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
-            </div>
-          </div>
-        </header>
+      <select
+        value={form.staffId}
+        onChange={(e) => setForm({ ...form, staffId: e.target.value })}
+      >
+        <option value="">Select Staff</option>
+        {staff.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </select>
 
-        <main className="p-8 pb-12 max-w-7xl mx-auto w-full">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 10, scale: 0.99 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.99 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
-              {activeTab === ActiveTab.Dashboard && (
-                <div className="space-y-12">
-                  <section className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-2xl font-black text-slate-900 tracking-tight">Main Dashboard</h3>
-                      <p className="text-sm font-medium text-slate-400">Real-time earnings metrics</p>
-                    </div>
-                    <EarningsCalculator />
-                  </section>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    <TipBoxInventory />
-                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-[2.5rem] text-white flex flex-col justify-between shadow-2xl shadow-blue-200">
-                      <div className="space-y-4">
-                        <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                          <Table className="w-8 h-8 text-white" />
-                        </div>
-                        <h3 className="text-2xl font-black tracking-tight">Financial Matrix</h3>
-                        <p className="text-blue-100 font-medium leading-relaxed">View a detailed breakdown of earnings, deductions, and final settlements for the entire roster.</p>
-                      </div>
-                      <button 
-                        onClick={() => setActiveTab(ActiveTab.Payouts)}
-                        className="mt-8 px-8 py-4 bg-white text-blue-700 font-black rounded-2xl hover:shadow-xl active:scale-95 transition-all w-fit"
-                      >
-                        Launch Matrix
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+      <input
+        placeholder="Reason"
+        value={form.reason}
+        onChange={(e) => setForm({ ...form, reason: e.target.value })}
+      />
 
-              {activeTab === ActiveTab.Staff && <StaffManager />}
-              {activeTab === ActiveTab.Advances && <AdvanceManager />}
-              {activeTab === ActiveTab.Inventory && <TipBoxInventory />}
-              {activeTab === ActiveTab.Payouts && <PayoutMatrix />}
-              {activeTab === ActiveTab.Settings && <BackupRestore />}
-            </motion.div>
-          </AnimatePresence>
-        </main>
-      </div>
+      <input
+        placeholder="Amount"
+        type="number"
+        value={form.amount}
+        onChange={(e) => setForm({ ...form, amount: e.target.value })}
+      />
+
+      <input
+        placeholder="Checked By"
+        value={form.checkedBy}
+        onChange={(e) => setForm({ ...form, checkedBy: e.target.value })}
+      />
+
+      <button onClick={addPenalty}>Add Penalty</button>
+
+      {/* PENALTY TABLE */}
+      <h2>Penalty Records</h2>
+      <table border={1}>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Reason</th>
+            <th>Checked By</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {penalties.map((p) => (
+            <tr key={p.id}>
+              <td>{p.date}</td>
+              <td>{p.staffName}</td>
+              <td>{p.reason}</td>
+              <td>{p.checkedBy}</td>
+              <td>{p.amount}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* FINAL PAYOUT */}
+      <h2>Final Payout</h2>
+      <table border={1}>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Earned</th>
+            <th>Advance</th>
+            <th>Penalty</th>
+            <th>Final Pay</th>
+          </tr>
+        </thead>
+        <tbody>
+          {staff.map((s) => {
+            const earned = s.points * perPoint;
+            const adv = getAdvance(s.id);
+            const pen = getPenalty(s.id);
+            const final = earned - (adv + pen);
+
+            return (
+              <tr key={s.id}>
+                <td>{s.name}</td>
+                <td>{earned.toFixed(0)}</td>
+                <td>{adv}</td>
+                <td>{pen}</td>
+                <td>{final.toFixed(0)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
