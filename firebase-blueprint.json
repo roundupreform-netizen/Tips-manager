@@ -1,0 +1,140 @@
+{
+  "entities": {
+    "StaffMember": {
+      "title": "Staff Member",
+      "description": "Information about a restaurant staff member",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the staff member" },
+        "position": { "type": "string", "enum": ["Captain", "Steward", "Bartender", "Housekeeping", "Cashier"], "description": "Job title" },
+        "points": { "type": "number", "description": "Tip sharing points assigned to this staff" }
+      },
+      "required": ["name", "position", "points"]
+    },
+    "AdvanceEntry": {
+      "title": "Advance Entry",
+      "description": "A record of an advance payment given to a staff member",
+      "type": "object",
+      "properties": {
+        "staffId": { "type": "string", "description": "ID of the staff member" },
+        "staffName": { "type": "string", "description": "Name of the staff member at time of entry" },
+        "position": { "type": "string", "description": "Position of the staff member at time of entry" },
+        "date": { "type": "string", "format": "date-time", "description": "Date of the advance" },
+        "amount": { "type": "number", "description": "Amount given" }
+      },
+      "required": ["staffId", "staffName", "position", "date", "amount"]
+    },
+    "Inventory": {
+      "title": "Tip Box Inventory",
+      "description": "Cash inventory in the tip box",
+      "type": "object",
+      "properties": {
+        "denominations": {
+          "type": "object",
+          "properties": {
+            "500": { "type": "number" },
+            "200": { "type": "number" },
+            "100": { "type": "number" },
+            "50": { "type": "number" },
+            "20": { "type": "number" },
+            "10": { "type": "number" },
+            "5": { "type": "number" }
+          }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["denominations", "updatedAt"]
+    },
+    "Settings": {
+      "title": "App Settings",
+      "description": "Global configuration for the tips manager",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "currency": { "type": "string" },
+        "kitchenMode": { "type": "string", "enum": ["fixed", "percentage"], "description": "Mode of kitchen share calculation" },
+        "kitchenValue": { "type": "number", "description": "Value for kitchen share (₹ or %)" },
+        "contact": {
+          "type": "object",
+          "properties": {
+            "phone": { "type": "string" },
+            "email": { "type": "string" },
+            "whatsapp": { "type": "string" },
+            "address": { "type": "string" }
+          }
+        },
+        "privacyPolicy": { "type": "string" },
+        "theme": { "type": "string", "enum": ["light", "dark", "system"] }
+      },
+      "required": ["appName", "subtitle", "currency", "kitchenMode", "kitchenValue"]
+    },
+    "User": {
+      "title": "User",
+      "description": "App user with role-based access",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "captain", "steward", "cashier", "kitchen", "custom"] },
+        "userCode": { "type": "string", "description": "4-digit PIN" },
+        "active": { "type": "boolean" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "email", "role", "userCode", "active"]
+    },
+    "RoleConfig": {
+      "title": "Role Config",
+      "description": "Permissions for a specific role",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "permissions": {
+          "type": "object",
+          "properties": {
+            "canAddStaff": { "type": "boolean" },
+            "canEditStaff": { "type": "boolean" },
+            "canDeleteStaff": { "type": "boolean" },
+            "canAddAdvance": { "type": "boolean" },
+            "canDeleteAdvance": { "type": "boolean" },
+            "canEditInventory": { "type": "boolean" },
+            "canViewReports": { "type": "boolean" },
+            "canEditSettings": { "type": "boolean" },
+            "canManageUsers": { "type": "boolean" }
+          }
+        }
+      },
+      "required": ["id", "name", "permissions"]
+    }
+  },
+  "firestore": {
+    "staff": {
+      "schema": "StaffMember",
+      "description": "Collection of staff members"
+    },
+    "advances": {
+      "schema": "AdvanceEntry",
+      "description": "Collection of advance payments"
+    },
+    "inventory/current": {
+      "schema": "Inventory",
+      "description": "Snapshot of current tip box inventory"
+    },
+    "settings/current": {
+      "schema": "Settings",
+      "description": "Global settings for the application"
+    },
+    "users": {
+      "schema": "User",
+      "description": "System users and profiles"
+    },
+    "roles": {
+      "schema": "RoleConfig",
+      "description": "Auth permissions for roles"
+    }
+  }
+}
