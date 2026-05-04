@@ -6,6 +6,33 @@ export enum Position {
   Cashier = 'Cashier'
 }
 
+export type Role = 'admin' | 'captain' | 'staff';
+
+export interface Permissions {
+  canAddUser: boolean;
+  canEditUser: boolean;
+  canDeleteUser: boolean;
+  canEnableDisable: boolean;
+  canAssignRole: boolean;
+  canSetPassword: boolean;
+  canSeeAllData: boolean;
+  canSeeOwnProfile: boolean;
+  canSeeOwnTips: boolean;
+  canSeeTotalCollection: boolean;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  username: string;
+  password: string;
+  role: Role;
+  active: boolean;
+  permissions: Permissions;
+  avatar?: string;
+  createdAt: string;
+}
+
 export interface StaffMember {
   id: string;
   name: string;
@@ -22,6 +49,17 @@ export interface AdvanceEntry {
   amount: number;
 }
 
+export interface PenaltyEntry {
+  id: string;
+  staffId: string;
+  staffName: string;
+  date: string;
+  reason: string;
+  amount: number;
+  checkedBy: string;
+  createdAt: any;
+}
+
 export interface Denominations {
   500: number;
   200: number;
@@ -35,30 +73,7 @@ export interface Denominations {
 export interface AppSettings {
   appName: string;
   subtitle: string;
-  currency: string;
   kitchenMode: 'fixed' | 'percentage';
   kitchenValue: number;
-  contact: {
-    phone: string;
-    email: string;
-    whatsapp: string;
-    address: string;
-  };
-  privacyPolicy: string;
-  theme: 'light' | 'dark' | 'system';
-}
-
-export enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-export interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
+  theme: 'light' | 'dark';
 }

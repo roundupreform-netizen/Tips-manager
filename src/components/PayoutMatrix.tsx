@@ -1,140 +1,110 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  collection, 
-  onSnapshot, 
-  doc 
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { 
   StaffMember, 
   AdvanceEntry, 
+  PenaltyEntry,
   Denominations, 
   AppSettings,
-  OperationType 
+  User,
+  Permissions
 } from '../types';
-import { handleFirestoreError } from '../lib/firebase-utils';
-import { Share2, Copy, FileText, Download } from 'lucide-react';
+import { Share2, Copy, FileText, Download, Lock, TrendingDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
+import { storage } from '../lib/storage';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 
-export default function PayoutMatrix() {
+import Avatar from './Avatar';
+
+interface PayoutMatrixProps {
+  user: User;
+  permissions: Permissions;
+}
+
+export default function PayoutMatrix({ user, permissions }: PayoutMatrixProps) {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [advances, setAdvances] = useState<AdvanceEntry[]>([]);
+  const [penalties, setPenalties] = useState<PenaltyEntry[]>([]);
   const [inventory, setInventory] = useState<Denominations | null>(null);
-  const [settings, setSettings] = useState<AppSettings>({ 
-    appName: 'Tips Manager',
-    subtitle: 'By Everest Developers',
-    currency: '₹',
-    kitchenMode: 'fixed', 
-    kitchenValue: 0,
-    contact: { phone: '', email: '', whatsapp: '', address: '' },
-    privacyPolicy: '',
-    theme: 'system'
-  });
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    const unsubStaff = onSnapshot(collection(db, 'staff'), 
-      (s) => setStaff(s.docs.map(d => ({ id: d.id, ...d.data() })) as StaffMember[]),
-      (e) => handleFirestoreError(e, OperationType.GET, 'staff')
-    );
-    const unsubAdv = onSnapshot(collection(db, 'advances'), 
-      (s) => setAdvances(s.docs.map(d => ({ id: d.id, ...d.data() })) as AdvanceEntry[]),
-      (e) => handleFirestoreError(e, OperationType.GET, 'advances')
-    );
-    const unsubInv = onSnapshot(doc(db, 'inventory', 'current'), 
-      (s) => s.exists() && setInventory(s.data().denominations),
-      (e) => handleFirestoreError(e, OperationType.GET, 'inventory/current')
-    );
-    const unsubSet = onSnapshot(doc(db, 'settings', 'current'), 
-      (s) => {
-        if (s.exists()) {
-          const data = s.data();
-          setSettings(prev => ({
-            ...prev,
-            kitchenMode: data.kitchenMode || 'fixed',
-            kitchenValue: data.kitchenValue !== undefined ? data.kitchenValue : 0
-          }));
-        }
-      },
-      (e) => handleFirestoreError(e, OperationType.GET, 'settings/current')
-    );
+    setStaff(storage.getStaff());
+    setAdvances(storage.getAdvances());
+    setInventory(storage.getInventory());
+    setSettings(storage.getSettings());
+    setUsers(storage.getUsers());
 
-    return () => {
-      unsubStaff(); unsubAdv(); unsubInv(); unsubSet();
-    };
+    const q = query(collection(db, 'penalties'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as PenaltyEntry[];
+      setPenalties(data);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'penalties');
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const matrixData = useMemo(() => {
-    if (!inventory) return [];
+    if (!inventory || !settings) return [];
 
-    const cashTotal = Object.entries(inventory).reduce((acc: number, [label, count]) => {
-      return acc + (Number(label) * (count as number));
-    }, 0);
-    const advancesTotal = advances.reduce((acc: number, a) => acc + a.amount, 0);
-    const totalCollection = cashTotal + advancesTotal;
+    const cashTotal = Object.entries(inventory).reduce((acc, [label, count]) => acc + (parseInt(label) * (count as number)), 0);
+    const totalAdvanceAmount = advances.reduce((acc, curr) => acc + curr.amount, 0);
+    const grossCollection = cashTotal + totalAdvanceAmount;
     
-    const kitchenShare = totalCollection === 0 ? 0 : (
-      settings.kitchenMode === 'fixed' 
-        ? settings.kitchenValue 
-        : (totalCollection * settings.kitchenValue) / 100
-    );
+    const kitchenShare = settings.kitchenMode === 'fixed' 
+      ? settings.kitchenValue 
+      : (settings.kitchenValue / 100) * grossCollection;
 
-    const netEarnings = Math.max(0, totalCollection - kitchenShare);
+    const netTips = grossCollection - kitchenShare;
+    const totalPoints = staff.reduce((acc, curr) => acc + curr.points, 0);
+    const pointValue = totalPoints > 0 ? netTips / totalPoints : 0;
+
+    let filteredStaff = staff;
     
-    const totalPoints = staff.reduce((acc: number, s) => acc + s.points, 0);
-    const tipPerPoint = totalPoints > 0 ? netEarnings / totalPoints : 0;
+    // Permission-based filtering
+    if (!permissions.canSeeAllData) {
+      if (permissions.canSeeOwnTips) {
+        // Only show their own record
+        filteredStaff = staff.filter(s => s.name.toLowerCase() === user.name.toLowerCase());
+      } else {
+        // No permission to see tips
+        return [];
+      }
+    }
 
-    return staff.map(member => {
-      const staffAdvances = advances
-        .filter(a => a.staffId === member.id)
-        .reduce((acc, a) => acc + a.amount, 0);
+    return filteredStaff.map(member => {
+      const grossEarnings = member.points * pointValue;
       
-      const earnedTips = member.points * tipPerPoint;
-      const finalPay = earnedTips - staffAdvances;
+      const memberAdvances = advances.filter(a => a.staffId === member.id);
+      const totalAdvances = memberAdvances.reduce((acc, curr) => acc + curr.amount, 0);
+
+      const memberPenalties = penalties.filter(p => p.staffId === member.id);
+      const totalPenalties = memberPenalties.reduce((acc, curr) => acc + curr.amount, 0);
+
+      const netPayable = grossEarnings - (totalAdvances + totalPenalties);
 
       return {
-        id: member.id,
-        name: member.name,
-        position: member.position,
-        points: member.points,
-        earnedTips,
-        advances: staffAdvances,
-        finalPay
+        ...member,
+        grossEarnings,
+        totalAdvances,
+        totalPenalties,
+        netPayable
       };
-    }).sort((a, b) => b.finalPay - a.finalPay);
-  }, [staff, advances, inventory, settings]);
-
-  const generateReport = () => {
-    if (matrixData.length === 0) return '';
-    const dateStr = new Date().toLocaleDateString('en-IN', { dateStyle: 'long' });
-    let report = `💰 *TIPS DISTRIBUTION REPORT*\n📅 ${dateStr}\n━━━━━━━━━━━━━━━\n\n`;
-    
-    matrixData.forEach(row => {
-      report += `👤 *${row.name}* (${row.position.slice(0,3)})\n`;
-      report += `⭐ Points: ${row.points}\n`;
-      report += `💵 Earned: ₹${row.earnedTips.toFixed(0)}\n`;
-      if (row.advances > 0) report += `📉 Advance: -₹${row.advances.toFixed(0)}\n`;
-      report += `✅ *Payable: ₹${row.finalPay.toFixed(0)}*\n`;
-      report += `───────────────\n`;
     });
-
-    report += `\n*TOTAL NET: ₹${matrixData.reduce((acc: number, r) => acc + r.earnedTips, 0).toFixed(0)}*`;
-    report += `\nBy Everest Developers`;
-    return report;
-  };
-
-  const shareWhatsApp = () => {
-    const text = encodeURIComponent(generateReport());
-    window.open(`https://wa.me/?text=${text}`, '_blank');
-  };
+  }, [staff, advances, penalties, inventory, settings, user, permissions]);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(generateReport());
+    const text = matrixData.map(d => 
+      `${d.name} (${d.position}): Gross ₹${Math.round(d.grossEarnings)} | Adv -₹${d.totalAdvances} | Pen -₹${d.totalPenalties} | Net ₹${Math.round(d.netPayable)}`
+    ).join('\n');
+    navigator.clipboard.writeText(text);
     alert('Report copied to clipboard!');
   };
 
@@ -142,69 +112,93 @@ export default function PayoutMatrix() {
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <FileText className="w-5 h-5 text-gray-400" />
-          <h3 className="text-lg font-semibold text-gray-900">Final Payout Matrix</h3>
+          <FileText className="text-blue-500" size={24} />
+          <div>
+            <h3 className="font-black text-slate-800 uppercase tracking-tight">Final Settlement Matrix</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              {user.role === 'staff' ? 'Personal Earning Breakdown' : 'Global Earning Breakdown & Integrated Deductions'}
+            </p>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button 
-            onClick={copyToClipboard}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg transition-all active:scale-95"
-          >
-            <Copy className="w-4 h-4" />
-            Copy Text
-          </button>
-          <button 
-            onClick={shareWhatsApp}
-            className="flex items-center gap-2 px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 text-sm font-semibold rounded-lg transition-all active:scale-95"
-          >
-            <Share2 className="w-4 h-4" />
-            WhatsApp
-          </button>
+        <div className="flex items-center gap-2">
+          {user.role !== 'staff' && (
+            <button 
+              onClick={copyToClipboard}
+              className="p-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all active:scale-95 flex items-center gap-2 text-xs font-black uppercase tracking-widest"
+            >
+              <Copy size={16} /> Copy Record
+            </button>
+          )}
+          {user.role === 'staff' && (
+             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                <Lock size={12} /> Read Only
+             </div>
+          )}
         </div>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-gray-50/50">
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Staff Details</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Points</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Earned Tips</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Advances</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Final Pay</th>
+            <tr className="bg-slate-50 border-b border-gray-100">
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Staff Unit</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Pts</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Gross Earnings</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Advance Paid</th>
+              <th className="px-6 py-4 text-[10px] font-black text-rose-500 uppercase tracking-widest text-right">Penalty</th>
+              <th className="px-6 py-4 text-[10px] font-black text-emerald-600 uppercase tracking-widest text-right">Net Payable</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {matrixData.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50/30 transition-colors">
+          <tbody className="divide-y divide-gray-50">
+            {matrixData.length > 0 ? matrixData.map((data, i) => (
+              <tr key={i} className="hover:bg-gray-50 transition-colors group">
                 <td className="px-6 py-4">
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-gray-900">{row.name}</span>
-                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider font-mono">{row.position}</span>
+                  <div className="flex items-center gap-3">
+                    <Avatar 
+                      name={data.name} 
+                      avatar={users.find(u => u.name.toLowerCase() === data.name.toLowerCase())?.avatar} 
+                      size="sm" 
+                    />
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-800">{data.name}</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{data.position}</span>
+                    </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 font-mono text-gray-500 text-sm">{row.points}</td>
-                <td className="px-6 py-4 font-mono text-sm text-gray-600">₹{row.earnedTips.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                <td className="px-6 py-4 font-mono text-sm text-gray-400">
-                  {row.advances > 0 ? `-₹${row.advances.toLocaleString()}` : '—'}
+                <td className="px-6 py-4 text-center">
+                  <span className="px-2 py-1 bg-slate-100 rounded text-[10px] font-black text-slate-600">{data.points}</span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <span className={cn(
-                    "text-lg font-black font-mono",
-                    row.finalPay < 0 ? "text-red-500" : "text-green-600"
-                  )}>
-                    ₹{row.finalPay.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  <span className="font-black text-slate-900">₹{Math.round(data.grossEarnings).toLocaleString()}</span>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <span className={cn("font-black", data.totalAdvances > 0 ? "text-indigo-500" : "text-slate-300")}>
+                    -₹{data.totalAdvances.toLocaleString()}
                   </span>
                 </td>
+                <td className="px-6 py-4 text-right">
+                  <span className={cn("font-black", data.totalPenalties > 0 ? "text-rose-500" : "text-slate-300")}>
+                    -₹{data.totalPenalties.toLocaleString()}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="bg-emerald-50 px-3 py-1.5 rounded-xl inline-block border border-emerald-100">
+                    <span className="font-black text-emerald-700">₹{Math.round(data.netPayable).toLocaleString()}</span>
+                  </div>
+                </td>
               </tr>
-            ))}
+            )) : (
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-center">
+                  <div className="space-y-3">
+                    <p className="font-bold text-slate-400 uppercase tracking-widest text-xs">No matching records active</p>
+                    <p className="text-sm text-slate-400">Please ensure your user name matches your staff roster profile.</p>
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
-        {matrixData.length === 0 && (
-          <div className="py-12 text-center text-gray-400">
-            <p>Complete calculations to see the payout matrix.</p>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -1,8 +1,59 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Default Deny
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
+    }
+
+    // Global Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // Collection: Penalties
+    match /penalties/{penaltyId} {
+      allow read: if true;
+      allow create: if true && 
+        isValidId(penaltyId) &&
+        incoming().amount is number && 
+        incoming().amount >= 0 &&
+        incoming().staffName is string &&
+        incoming().reason is string &&
+        incoming().checkedBy is string;
+      allow update: if false; // Penalties are immutable in this flow
+      allow delete: if true; // Allow delete without auth as it's an internal tool
+    }
+
+    // Collection: Staff
+    match /staff/{staffId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Collection: Advances
+    match /advances/{advanceId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Collection: Inventory
+    match /inventory/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Collection: Settings
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Collection: Users
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if true;
     }
   }
 }

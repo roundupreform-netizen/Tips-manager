@@ -1,216 +1,167 @@
-import React, { useState } from "react";
+import React from 'react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn } from './lib/utils';
+import { storage, getDefaultPermissions } from './lib/storage';
+import { User, AppSettings, Permissions } from './types';
 
-type Staff = {
-  id: string;
-  name: string;
-  points: number;
-};
+// Components
+import Sidebar from './components/Sidebar';
+import StaffManager from './components/StaffManager';
+import AdvanceManager from './components/AdvanceManager';
+import TipBoxInventory from './components/TipBoxInventory';
+import PenaltyManager from './components/PenaltyManager';
+import EarningsCalculator from './components/EarningsCalculator';
+import PayoutMatrix from './components/PayoutMatrix';
+import BackupRestore from './components/BackupRestore';
+import UserManager from './components/UserManager';
 
-type Penalty = {
-  id: string;
-  staffId: string;
-  staffName: string;
-  date: string;
-  reason: string;
-  amount: number;
-  checkedBy: string;
-};
+import { Table, Moon, Sun } from 'lucide-react';
 
-const staffList: Staff[] = [
-  { id: "1", name: "Tej", points: 5 },
-  { id: "2", name: "Sameer", points: 5 },
-  { id: "3", name: "Tarak", points: 3 },
-];
+enum ActiveTab {
+  Dashboard = 'dashboard',
+  Staff = 'staff',
+  Advances = 'advances',
+  Penalties = 'penalties',
+  Inventory = 'inventory',
+  Payouts = 'payouts',
+  Users = 'users',
+  Settings = 'settings'
+}
 
 export default function App() {
-  const [penalties, setPenalties] = useState<Penalty[]>([]);
-  const [form, setForm] = useState({
-    staffId: "",
-    reason: "",
-    amount: "",
-    checkedBy: "",
-    date: new Date().toISOString().split("T")[0],
-  });
+  const [user, setUser] = useState<User>(storage.getCurrentUser());
+  const [permissions, setPermissions] = useState<Permissions>(getDefaultPermissions(storage.getCurrentUser().role));
+  const [activeTab, setActiveTab] = useState<ActiveTab>(ActiveTab.Dashboard);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [appSettings, setAppSettings] = useState<AppSettings>(storage.getSettings());
 
-  const totalPool = 5000; // total tips (you can make dynamic later)
-  const totalPoints = staffList.reduce((sum, s) => sum + s.points, 0);
-  const perPoint = totalPool / totalPoints;
+  useEffect(() => {
+    // Sync current user if changed elsewhere (unlikely now)
+    const currentUser = storage.getCurrentUser();
+    setUser(currentUser);
+    setPermissions(getDefaultPermissions(currentUser.role));
+  }, []);
 
-  const addPenalty = () => {
-    if (!form.staffId || !form.amount) return;
-
-    const selected = staffList.find((s) => s.id === form.staffId);
-
-    const newPenalty: Penalty = {
-      id: Date.now().toString(),
-      staffId: form.staffId,
-      staffName: selected?.name || "",
-      date: form.date,
-      reason: form.reason,
-      amount: Number(form.amount),
-      checkedBy: form.checkedBy,
-    };
-
-    setPenalties((prev) => [...prev, newPenalty]);
-
-    setForm({
-      staffId: "",
-      reason: "",
-      amount: "",
-      checkedBy: "",
-      date: new Date().toISOString().split("T")[0],
-    });
+  const toggleTheme = () => {
+    const newTheme = appSettings.theme === 'light' ? 'dark' : 'light';
+    const updated = { ...appSettings, theme: newTheme };
+    storage.saveSettings(updated);
+    setAppSettings(updated);
   };
 
-  const getPenalty = (staffId: string) =>
-    penalties
-      .filter((p) => p.staffId === staffId)
-      .reduce((sum, p) => sum + p.amount, 0);
+  // Auto-collapse sidebar on small screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) setIsCollapsed(true);
+      else setIsCollapsed(false);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
-    <div
-      style={{
-        fontFamily: "Arial",
-        background: "#f4f6f8",
-        minHeight: "100vh",
-        padding: 16,
-      }}
-    >
-      <div style={{ maxWidth: 500, margin: "auto" }}>
-        {/* HEADER */}
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <h2>Tips Manager</h2>
-          <p style={{ color: "#666" }}>By Everest Developers</p>
-        </div>
+    <div className={cn(
+      "min-h-screen flex transition-colors duration-300",
+      appSettings.theme === 'dark' ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"
+    )}>
+      <Sidebar 
+        activeTab={activeTab} 
+        onTabChange={(tab) => setActiveTab(tab as ActiveTab)} 
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
+        appName={appSettings.appName}
+        subtitle={appSettings.subtitle}
+        user={user}
+        permissions={permissions}
+      />
 
-        {/* PENALTY FORM */}
-        <div
-          style={{
-            background: "#fff",
-            padding: 15,
-            borderRadius: 10,
-            marginBottom: 20,
-            boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-          }}
-        >
-          <h3>Penalty Entry</h3>
-
-          <input
-            type="date"
-            value={form.date}
-            onChange={(e) => setForm({ ...form, date: e.target.value })}
-            style={{ width: "100%", marginBottom: 10, padding: 8 }}
-          />
-
-          <select
-            value={form.staffId}
-            onChange={(e) => setForm({ ...form, staffId: e.target.value })}
-            style={{ width: "100%", marginBottom: 10, padding: 8 }}
-          >
-            <option value="">Select Staff</option>
-            {staffList.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-
-          <input
-            placeholder="Reason"
-            value={form.reason}
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
-            style={{ width: "100%", marginBottom: 10, padding: 8 }}
-          />
-
-          <input
-            placeholder="Amount ₹"
-            type="number"
-            value={form.amount}
-            onChange={(e) => setForm({ ...form, amount: e.target.value })}
-            style={{ width: "100%", marginBottom: 10, padding: 8 }}
-          />
-
-          <input
-            placeholder="Checked By"
-            value={form.checkedBy}
-            onChange={(e) => setForm({ ...form, checkedBy: e.target.value })}
-            style={{ width: "100%", marginBottom: 10, padding: 8 }}
-          />
-
-          <button
-            onClick={addPenalty}
-            style={{
-              width: "100%",
-              padding: 10,
-              background: "#1976d2",
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              fontWeight: "bold",
-            }}
-          >
-            Add Penalty
-          </button>
-        </div>
-
-        {/* PENALTY LIST */}
-        <div style={{ marginBottom: 20 }}>
-          <h3>Penalty Records</h3>
-
-          {penalties.length === 0 && <p>No penalties added</p>}
-
-          {penalties.map((p) => (
-            <div
-              key={p.id}
-              style={{
-                background: "#fff",
-                padding: 10,
-                borderRadius: 8,
-                marginBottom: 10,
-                boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-              }}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+        <header className={cn(
+          "h-20 px-4 sm:px-8 border-b flex items-center justify-between sticky top-0 md:bg-opacity-80 backdrop-blur-md z-30 transition-colors",
+          appSettings.theme === 'dark' ? "bg-slate-900/80 border-slate-800" : "bg-white/80 border-slate-100"
+        )}>
+          <div className="flex flex-col">
+            <h2 className="text-xl font-black tracking-tight uppercase">
+              {activeTab === ActiveTab.Dashboard && 'Core Dashboard'}
+              {activeTab === ActiveTab.Staff && 'Staff Portal'}
+              {activeTab === ActiveTab.Advances && 'Cash Advances'}
+              {activeTab === ActiveTab.Penalties && 'Penalty System'}
+              {activeTab === ActiveTab.Inventory && 'Physical Inventory'}
+              {activeTab === ActiveTab.Payouts && 'Financial Matrix'}
+              {activeTab === ActiveTab.Users && 'Access Management'}
+              {activeTab === ActiveTab.Settings && 'System Control'}
+            </h2>
+            <p className={cn(
+              "text-[10px] font-bold uppercase tracking-widest",
+              appSettings.theme === 'dark' ? "text-slate-500" : "text-slate-400"
+            )}>
+              {appSettings.appName} • {appSettings.subtitle}
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button 
+              onClick={toggleTheme}
+              className={cn(
+                "p-2.5 rounded-xl transition-all border",
+                appSettings.theme === 'dark' 
+                  ? "bg-slate-800 border-slate-700 text-amber-400" 
+                  : "bg-white border-slate-100 text-slate-400 hover:text-slate-900 shadow-sm"
+              )}
             >
-              <strong>{p.staffName}</strong> — ₹{p.amount}
-              <br />
-              {p.reason}
-              <br />
-              <small>
-                {p.date} | Checked by: {p.checkedBy}
-              </small>
+              {appSettings.theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <div className={cn(
+              "px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider",
+              appSettings.theme === 'dark' ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"
+            )}>
+              {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
             </div>
-          ))}
-        </div>
+          </div>
+        </header>
 
-        {/* FINAL PAYOUT */}
-        <div>
-          <h3>Final Payout</h3>
-
-          {staffList.map((s) => {
-            const earned = s.points * perPoint;
-            const penalty = getPenalty(s.id);
-            const final = earned - penalty;
-
-            return (
-              <div
-                key={s.id}
-                style={{
-                  background: "#e3f2fd",
-                  padding: 12,
-                  borderRadius: 8,
-                  marginBottom: 10,
-                }}
-              >
-                <strong>{s.name}</strong>
-                <br />
-                Earned: ₹{earned.toFixed(0)}
-                <br />
-                Penalty: ₹{penalty}
-                <br />
-                <strong>Final Pay: ₹{final.toFixed(0)}</strong>
-              </div>
-            );
-          })}
-        </div>
+        <main className="p-4 sm:p-8 flex-1 max-w-7xl w-full mx-auto">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {activeTab === ActiveTab.Dashboard && (
+                <div className="space-y-8">
+                  <EarningsCalculator permissions={permissions!} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <TipBoxInventory permissions={permissions!} />
+                    <div className="bg-indigo-600 p-8 rounded-[2.5rem] text-white flex flex-col justify-between shadow-xl shadow-indigo-200/20">
+                      <div className="space-y-4">
+                        <Table className="w-12 h-12 opacity-50" />
+                        <h3 className="text-2xl font-black tracking-tight">Financial Matrix</h3>
+                        <p className="text-indigo-100 text-sm font-medium leading-relaxed">View detailed settlements, deductions, and final points calculation for all active staff members.</p>
+                      </div>
+                      <button 
+                        onClick={() => setActiveTab(ActiveTab.Payouts)}
+                        className="mt-6 px-6 py-3 bg-white text-indigo-600 font-black rounded-xl w-fit active:scale-95 transition-all text-xs uppercase tracking-widest"
+                      >
+                        Launch Matrix
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {activeTab === ActiveTab.Staff && <StaffManager permissions={permissions!} />}
+              {activeTab === ActiveTab.Advances && <AdvanceManager permissions={permissions!} />}
+              {activeTab === ActiveTab.Penalties && <PenaltyManager permissions={permissions!} />}
+              {activeTab === ActiveTab.Inventory && <TipBoxInventory permissions={permissions!} />}
+              {activeTab === ActiveTab.Payouts && <PayoutMatrix user={user} permissions={permissions!} />}
+              {activeTab === ActiveTab.Users && <UserManager permissions={permissions!} />}
+              {activeTab === ActiveTab.Settings && <BackupRestore permissions={permissions!} />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
       </div>
     </div>
   );

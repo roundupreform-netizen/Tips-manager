@@ -109,6 +109,21 @@
         }
       },
       "required": ["id", "name", "permissions"]
+    },
+    "PenaltyEntry": {
+      "title": "Penalty Entry",
+      "description": "A record of a penalty applied to a staff member",
+      "type": "object",
+      "properties": {
+        "staffId": { "type": "string", "description": "ID of the staff member" },
+        "staffName": { "type": "string", "description": "Name of the staff member" },
+        "date": { "type": "string", "format": "date", "description": "Date of the penalty" },
+        "reason": { "type": "string", "description": "Reason for the penalty" },
+        "amount": { "type": "number", "description": "Penalty amount" },
+        "checkedBy": { "type": "string", "description": "Person who verified the penalty" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["staffId", "staffName", "date", "reason", "amount", "checkedBy"]
     }
   },
   "firestore": {
@@ -119,6 +134,10 @@
     "advances": {
       "schema": "AdvanceEntry",
       "description": "Collection of advance payments"
+    },
+    "penalties": {
+      "schema": "PenaltyEntry",
+      "description": "Collection of staff penalties"
     },
     "inventory/current": {
       "schema": "Inventory",

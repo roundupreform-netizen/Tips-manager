@@ -1,233 +1,205 @@
 import React, { useState, useEffect } from 'react';
 import { 
+  Save, 
+  Trash2, 
   Download, 
   Upload, 
-  Database, 
-  Trash2, 
-  RefreshCcw, 
-  Settings as SettingsIcon,
-  Globe,
-  Moon,
-  Sun,
+  RotateCcw,
+  ShieldAlert,
   ShieldCheck,
-  Phone,
-  Mail,
-  MapPin,
-  FileText
+  Check,
+  Lock
 } from 'lucide-react';
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { OperationType, AppSettings } from '../types';
-import { handleFirestoreError } from '../lib/firebase-utils';
+import { AppSettings, Permissions } from '../types';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import { storage } from '../lib/storage';
 
-export default function SettingsPage() {
-  const [settings, setSettings] = useState<AppSettings>({
-    appName: 'Tips Pro',
-    subtitle: 'By Everest Developers',
-    currency: '₹',
-    kitchenMode: 'fixed',
-    kitchenValue: 0,
-    contact: { phone: '', email: '', whatsapp: '', address: '' },
-    privacyPolicy: '',
-    theme: 'system'
-  });
+interface BackupRestoreProps {
+  permissions: Permissions;
+}
+
+export default function BackupRestore({ permissions }: BackupRestoreProps) {
+  const [settings, setSettings] = useState<AppSettings>(storage.getSettings());
   const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      const docSnap = await getDoc(doc(db, 'settings', 'current'));
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setSettings(prev => ({
-          ...prev,
-          ...data,
-          contact: data.contact || prev.contact
-        }));
-      }
-    };
-    fetchSettings();
+    setSettings(storage.getSettings());
   }, []);
 
-  const handleSaveSettings = async (newSettings: Partial<AppSettings>) => {
+  const handleSaveSettings = (newSettings: Partial<AppSettings>) => {
+    if (!permissions.canSeeAllData) return;
     setIsSaving(true);
-    try {
-      const updated = { ...settings, ...newSettings };
-      await setDoc(doc(db, 'settings', 'current'), updated, { merge: true });
-      setSettings(updated);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'settings/current');
-    } finally {
-      setIsSaving(false);
-    }
+    const updated = { ...settings, ...newSettings };
+    storage.saveSettings(updated);
+    setSettings(updated);
+    setTimeout(() => setIsSaving(false), 500);
   };
 
-  const exportData = async () => {
-    try {
-      const collections = ['staff', 'advances', 'inventory', 'settings'];
-      const data: any = {};
-      
-      for (const collName of collections) {
-        const querySnapshot = await getDocs(collection(db, collName));
-        data[collName] = querySnapshot.docs.reduce((acc, doc) => ({
-          ...acc,
-          [doc.id]: doc.data()
-        }), {});
+  const exportData = () => {
+    if (!permissions.canSeeAllData) return; 
+    const data = {
+      users: storage.getUsers(),
+      staff: storage.getStaff(),
+      advances: storage.getAdvances(),
+      inventory: storage.getInventory(),
+      settings: storage.getSettings(),
+      exportDate: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tips_pro_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!permissions.canSeeAllData) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (data.users) storage.saveUsers(data.users);
+        if (data.staff) storage.saveStaff(data.staff);
+        if (data.advances) storage.saveAdvances(data.advances);
+        if (data.inventory) storage.saveInventory(data.inventory);
+        if (data.settings) storage.saveSettings(data.settings);
+        
+        alert('Data successfully imported! Refreshing...');
+        window.location.reload();
+      } catch (err) {
+        alert('Failed to parse backup file.');
       }
-
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tips-pro-backup-${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-    } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'backup');
-    }
+    };
+    reader.readAsText(file);
   };
+
+  const resetSystem = () => {
+    if (!permissions.canSeeAllData) return;
+    if (!confirm('EXTREME WARNING: This will delete ALL staff, advances, and inventory records. Users will remain. Proceed?')) return;
+    setIsResetting(true);
+    storage.saveStaff([]);
+    storage.saveAdvances([]);
+    storage.saveInventory({ 500: 0, 200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0 });
+    setTimeout(() => {
+      setIsResetting(false);
+      alert('System reset successfully.');
+      window.location.reload();
+    }, 1000);
+  };
+
+  if (!permissions.canSeeAllData) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-4">
+        <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center shadow-sm">
+          <Lock size={32} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Access Denied</h2>
+          <p className="text-sm font-medium text-slate-500 max-w-xs mx-auto">Only authorized Administrators can access system settings and data management tools.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-12 pb-20">
-      {/* General Settings */}
+    <div className="space-y-12">
       <section className="space-y-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-blue-600 rounded-2xl shadow-lg shadow-blue-200">
-            <SettingsIcon className="text-white w-6 h-6" />
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
+            <ShieldAlert size={26} />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">System Configuration</h2>
-            <p className="text-slate-500 font-medium">Core application identity and preferences</p>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight">System Control</h2>
+            <p className="text-sm font-medium text-slate-500 italic block">Everest Developers Professional Suite v3.0</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 space-y-6 shadow-sm">
-            <div className="space-y-4">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest block">Application Name</label>
-              <input 
-                type="text" 
-                value={settings.appName}
-                onChange={(e) => handleSaveSettings({ appName: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-50"
-              />
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-8 sm:p-12 space-y-12">
+          {/* Identity Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <h3 className="text-xl font-black uppercase tracking-tight text-slate-800">Branding</h3>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">Customize how the application identifies itself across the system.</p>
             </div>
-            <div className="space-y-4">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest block">System Subtitle</label>
-              <input 
-                type="text" 
-                value={settings.subtitle}
-                onChange={(e) => handleSaveSettings({ subtitle: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-50"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest block">Currency Symbol</label>
+            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">App Primary Name</label>
                 <input 
-                  type="text" 
-                  value={settings.currency}
-                  onChange={(e) => handleSaveSettings({ currency: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 font-bold text-slate-700 text-center outline-none focus:ring-4 focus:ring-blue-50"
+                  value={settings.appName}
+                  onChange={(e) => handleSaveSettings({ appName: e.target.value })}
+                  className="w-full px-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/20 font-black text-slate-700" 
                 />
               </div>
-              <div className="space-y-4 text-center">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest block">Theme Mode</label>
-                <div className="flex bg-slate-100 p-1 rounded-2xl">
-                  {[
-                    { id: 'light', icon: Sun },
-                    { id: 'dark', icon: Moon },
-                    { id: 'system', icon: Globe }
-                  ].map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => handleSaveSettings({ theme: t.id as any })}
-                      className={cn(
-                        "flex-1 p-3 rounded-xl transition-all flex items-center justify-center",
-                        settings.theme === t.id ? "bg-white text-blue-600 shadow-sm" : "text-slate-400"
-                      )}
-                    >
-                      <t.icon size={20} />
-                    </button>
-                  ))}
-                </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sub-branding / Tagline</label>
+                <input 
+                  value={settings.subtitle}
+                  onChange={(e) => handleSaveSettings({ subtitle: e.target.value })}
+                  className="w-full px-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/20 font-black text-slate-700" 
+                />
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 space-y-6 shadow-sm">
-             <div className="flex items-center gap-3 mb-2">
-                <Phone className="w-4 h-4 text-blue-500" />
-                <h3 className="font-black text-slate-900">Organization Identity</h3>
-             </div>
-             <div className="grid grid-cols-1 gap-4">
-               <input 
-                 placeholder="Business Phone"
-                 value={settings.contact.phone}
-                 onChange={(e) => handleSaveSettings({ contact: { ...settings.contact, phone: e.target.value } })}
-                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 font-semibold text-slate-700 outline-none"
-               />
-               <input 
-                 placeholder="WhatsApp Link/Number"
-                 value={settings.contact.whatsapp}
-                 onChange={(e) => handleSaveSettings({ contact: { ...settings.contact, whatsapp: e.target.value } })}
-                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 font-semibold text-slate-700 outline-none"
-               />
-               <input 
-                 placeholder="Support Email"
-                 value={settings.contact.email}
-                 onChange={(e) => handleSaveSettings({ contact: { ...settings.contact, email: e.target.value } })}
-                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 font-semibold text-slate-700 outline-none"
-               />
-               <textarea 
-                 placeholder="Business Address"
-                 value={settings.contact.address}
-                 onChange={(e) => handleSaveSettings({ contact: { ...settings.contact, address: e.target.value } })}
-                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 font-semibold text-slate-700 outline-none h-24 resize-none"
-               />
-             </div>
-          </div>
-        </div>
-      </section>
+          <div className="h-px bg-slate-100" />
 
-      {/* Privacy Policy */}
-      <section className="space-y-6">
-         <div className="flex items-center gap-3">
-            <FileText className="w-6 h-6 text-slate-400" />
-            <h3 className="text-xl font-bold">Data Privacy & Terms</h3>
-         </div>
-         <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-            <textarea 
-              value={settings.privacyPolicy}
-              onChange={(e) => handleSaveSettings({ privacyPolicy: e.target.value })}
-              className="w-full h-48 bg-slate-50 border border-slate-100 rounded-2xl p-6 font-medium text-slate-600 outline-none focus:ring-4 focus:ring-blue-50"
-              placeholder="Paste your privacy policy text here..."
-            />
-         </div>
-      </section>
-
-      {/* Maintenance */}
-      <section className="pt-12 border-t border-slate-200">
-        <div className="bg-red-50 p-8 rounded-[2rem] border border-red-100 flex flex-col md:flex-row md:items-center justify-between gap-8">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-red-600">
-              <ShieldCheck size={20} />
-              <h3 className="text-lg font-black uppercase tracking-widest">Maintenance Mode</h3>
+          {/* Maintenance Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <h3 className="text-xl font-black uppercase tracking-tight text-slate-800">Offline Recovery</h3>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">Export your data to a JSON file for local backup or transfer.</p>
             </div>
-            <p className="text-sm font-medium text-red-700 leading-relaxed max-w-lg">
-              Perform heavy database operations like zero-loss cloud exports or system resets. This area is strictly for system administrators.
-            </p>
+            <div className="lg:col-span-2 flex flex-wrap gap-4">
+              <button 
+                onClick={exportData}
+                className="px-8 py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all flex items-center gap-3 shadow-lg shadow-slate-900/20 active:scale-95 text-xs uppercase tracking-widest"
+              >
+                <Download size={20} /> Export Local JSON
+              </button>
+              
+              <label className="px-8 py-4 bg-white text-slate-900 font-black rounded-2xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-3 shadow-sm cursor-pointer active:scale-95 text-xs uppercase tracking-widest">
+                <Upload size={20} /> Import Backup
+                <input type="file" accept=".json" onChange={handleImport} className="hidden" />
+              </label>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-4">
+
+          <div className="h-px bg-slate-100" />
+
+          {/* Dangerous Zone */}
+          <div className="bg-rose-50 p-8 rounded-[2rem] border border-rose-100 flex flex-col md:flex-row md:items-center justify-between gap-8">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-rose-600">
+                <ShieldCheck size={20} />
+                <h3 className="text-lg font-black uppercase tracking-widest">Master Reset</h3>
+              </div>
+              <p className="text-sm font-medium text-rose-700 leading-relaxed max-w-lg">
+                Instantly clear all operational data (Staff, Advances, Inventory). This action is irreversible and primarily for use at the end of financial cycles.
+              </p>
+            </div>
             <button 
-              onClick={exportData}
-              className="px-8 py-4 bg-white text-red-600 font-black rounded-2xl border border-red-200 hover:bg-red-50 transition-all flex items-center gap-3 shadow-sm active:scale-95"
+              onClick={resetSystem}
+              disabled={isResetting}
+              className="px-8 py-4 bg-rose-600 text-white font-black rounded-2xl hover:bg-rose-500 transition-all flex items-center gap-3 shadow-lg shadow-rose-200 active:scale-95 text-xs uppercase tracking-widest disabled:opacity-50"
             >
-              <Download size={20} /> Export Cloud JSON
+              {isResetting ? <Check size={20} className="animate-bounce" /> : <RotateCcw size={20} />}
+              System Wipe
             </button>
           </div>
         </div>
       </section>
+
+      <div className="text-center">
+        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em]">Tips Manager Pro • Everest Developers • Powered by LocalStorage</p>
+      </div>
     </div>
   );
 }
