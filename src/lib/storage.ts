@@ -62,12 +62,12 @@ export const getDefaultPermissions = (role: Role): Permissions => {
       canSeeTotalCollection: true,
     },
     captain: {
-      canAddUser: false,
-      canEditUser: false,
-      canDeleteUser: false,
-      canEnableDisable: false,
-      canAssignRole: false,
-      canSetPassword: false,
+      canAddUser: true,
+      canEditUser: true,
+      canDeleteUser: true,
+      canEnableDisable: true,
+      canAssignRole: false, // Keep role assignment restricted to admin only
+      canSetPassword: true,
       canSeeAllData: true,
       canSeeOwnProfile: true,
       canSeeOwnTips: true,
