@@ -3,7 +3,9 @@ import { Denominations, Permissions } from '../types';
 import { Banknote, Calculator, Save, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
-import { storage } from '../lib/storage';
+import { useInventory } from '../hooks/useRealtimeData';
+import { firestoreService } from '../services/firestoreService';
+import { Loader2 } from 'lucide-react';
 
 const DENOM_LABELS = [500, 200, 100, 50, 20, 10, 5] as const;
 
@@ -12,9 +14,7 @@ interface TipBoxInventoryProps {
 }
 
 export default function TipBoxInventory({ permissions }: TipBoxInventoryProps) {
-  const [denominations, setDenominations] = useState<Denominations>({
-    500: 0, 200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0
-  });
+  const { data: denominations, loading } = useInventory();
   const [isSaving, setIsSaving] = useState(false);
 
   // Focus Management Refs
@@ -28,23 +28,29 @@ export default function TipBoxInventory({ permissions }: TipBoxInventoryProps) {
     5: useRef<HTMLInputElement>(null)
   };
 
-  useEffect(() => {
-    setDenominations(storage.getInventory());
-  }, []);
-
   const totalCash = DENOM_LABELS.reduce((acc, label) => acc + (label * (denominations[label] || 0)), 0);
 
-  const handleSave = () => {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="animate-spin text-blue-500" size={32} />
+      </div>
+    );
+  }
+
+  const handleSave = async () => {
     if (!permissions.canSeeAllData) return;
     setIsSaving(true);
-    storage.saveInventory(denominations);
+    await firestoreService.saveInventory(denominations);
     setTimeout(() => setIsSaving(false), 500);
   };
 
   const handleInputChange = (label: keyof Denominations, value: string) => {
     if (!permissions.canSeeAllData) return;
     const num = parseInt(value) || 0;
-    setDenominations(prev => ({ ...prev, [label]: Math.max(0, num) }));
+    // We update Firestore directly for real-time sync across devices
+    const updated = { ...denominations, [label]: Math.max(0, num) };
+    firestoreService.saveInventory(updated);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, denom: typeof DENOM_LABELS[number]) => {
@@ -73,12 +79,12 @@ export default function TipBoxInventory({ permissions }: TipBoxInventoryProps) {
 
   if (!permissions.canSeeAllData && !permissions.canSeeTotalCollection) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center space-y-4">
-        <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center mx-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-8 text-center space-y-4">
+        <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400 rounded-xl flex items-center justify-center mx-auto">
           <Lock size={24} />
         </div>
-        <h3 className="font-black text-slate-800 uppercase tracking-tight">Access Restricted</h3>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+        <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight">Access Restricted</h3>
+        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-relaxed">
           Inventory data is only visible to management.
         </p>
       </div>
@@ -86,20 +92,20 @@ export default function TipBoxInventory({ permissions }: TipBoxInventoryProps) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full flex flex-col">
-      <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-blue-50/30">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden h-full flex flex-col">
+      <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-blue-50/30 dark:bg-blue-900/10">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
             <Banknote size={20} />
           </div>
           <div>
-            <h3 className="font-black text-slate-800 uppercase tracking-tight">Box Inventory</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Physical Cash Count</p>
+            <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight">Box Inventory</h3>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Physical Cash Count</p>
           </div>
         </div>
         <div className="text-right">
-          <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] block mb-1">Total Assets</span>
-          <span className="text-2xl font-black text-slate-900 tracking-tight italic">₹{totalCash.toLocaleString()}</span>
+          <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] block mb-1">Total Assets</span>
+          <span className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight italic">₹{totalCash.toLocaleString()}</span>
         </div>
       </div>
 
@@ -110,11 +116,11 @@ export default function TipBoxInventory({ permissions }: TipBoxInventoryProps) {
               {DENOM_LABELS.map((label) => (
                 <div key={label} className="group transition-all">
                   <div className={cn(
-                    "flex items-center gap-4 bg-slate-50 p-1.5 rounded-xl border border-slate-100 transition-all",
-                    "group-hover:bg-white group-hover:border-blue-200 group-hover:shadow-md"
+                    "flex items-center gap-4 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-100 dark:border-slate-700 transition-all",
+                    "group-hover:bg-white dark:group-hover:bg-slate-800 dark:group-hover:border-blue-500/50 group-hover:border-blue-200 group-hover:shadow-md"
                   )}>
                     <div className={cn(
-                      "w-16 h-10 bg-white rounded-lg border border-gray-200 flex items-center justify-center font-black text-slate-500 shadow-sm relative transition-colors",
+                      "w-16 h-10 bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 flex items-center justify-center font-black text-slate-500 dark:text-slate-400 shadow-sm relative transition-colors",
                       "group-hover:border-blue-500"
                     )}>
                       <span className="text-xs uppercase tracking-widest">₹{label}</span>
@@ -129,13 +135,13 @@ export default function TipBoxInventory({ permissions }: TipBoxInventoryProps) {
                         onKeyDown={(e) => handleKeyDown(e, label)}
                         onFocus={(e) => e.target.select()}
                         className={cn(
-                          "w-full bg-transparent p-2 outline-none font-black text-slate-700 text-lg placeholder-slate-200"
+                          "w-full bg-transparent p-2 outline-none font-black text-slate-700 dark:text-slate-200 text-lg placeholder-slate-200 dark:placeholder-slate-700"
                         )}
                         placeholder="0"
                       />
-                      <div className="hidden sm:flex flex-col text-[10px] font-black text-slate-400 uppercase pr-2">
+                      <div className="hidden sm:flex flex-col text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase pr-2">
                         <span>X {label}</span>
-                        <span className="text-blue-500 text-xs">₹{(label * (denominations[label] || 0)).toLocaleString()}</span>
+                        <span className="text-blue-500 dark:text-blue-400 text-xs">₹{(label * (denominations[label] || 0)).toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -144,13 +150,13 @@ export default function TipBoxInventory({ permissions }: TipBoxInventoryProps) {
             </div>
           </div>
 
-          <div className="p-6 bg-slate-50/50 border-t border-slate-100">
+          <div className="p-6 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
             <button
               onClick={handleSave}
               disabled={isSaving}
               className={cn(
                 "w-full py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2 active:scale-95 uppercase tracking-widest text-xs relative overflow-hidden",
-                isSaving ? "bg-emerald-500 text-white" : "bg-slate-900 text-white hover:bg-slate-800"
+                isSaving ? "bg-emerald-500 text-white" : "bg-slate-900 dark:bg-blue-600 text-white hover:bg-slate-800 dark:hover:bg-blue-500"
               )}
             >
               {isSaving ? (
@@ -169,12 +175,12 @@ export default function TipBoxInventory({ permissions }: TipBoxInventoryProps) {
         </>
       ) : (
         <div className="p-12 text-center flex-1 flex flex-col items-center justify-center space-y-4">
-          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+          <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center">
             <Calculator size={32} />
           </div>
           <div>
-            <h4 className="font-black text-slate-700 uppercase tracking-tight">Viewing Aggregated Data</h4>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Breakdown is restricted by your system role</p>
+            <h4 className="font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">Viewing Aggregated Data</h4>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Breakdown is restricted by your system role</p>
           </div>
         </div>
       )}

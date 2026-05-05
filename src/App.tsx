@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { storage, getDefaultPermissions } from './lib/storage';
+import { firestoreService } from './services/firestoreService';
+import { useSettings } from './hooks/useRealtimeData';
 import { User, AppSettings, Permissions } from './types';
 
 // Components
@@ -30,24 +32,15 @@ enum ActiveTab {
 }
 
 export default function App() {
-  const [user, setUser] = useState<User>(storage.getCurrentUser());
-  const [permissions, setPermissions] = useState<Permissions>(getDefaultPermissions(storage.getCurrentUser().role));
+  const { data: appSettings, loading: settingsLoading } = useSettings();
   const [activeTab, setActiveTab] = useState<ActiveTab>(ActiveTab.Dashboard);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [appSettings, setAppSettings] = useState<AppSettings>(storage.getSettings());
-
-  useEffect(() => {
-    // Sync current user if changed elsewhere (unlikely now)
-    const currentUser = storage.getCurrentUser();
-    setUser(currentUser);
-    setPermissions(getDefaultPermissions(currentUser.role));
-  }, []);
+  const [user, setUser] = useState<User>(storage.getCurrentUser());
+  const [permissions, setPermissions] = useState<Permissions>(getDefaultPermissions(storage.getCurrentUser().role));
 
   const toggleTheme = () => {
     const newTheme = appSettings.theme === 'light' ? 'dark' : 'light';
-    const updated = { ...appSettings, theme: newTheme };
-    storage.saveSettings(updated);
-    setAppSettings(updated);
+    firestoreService.saveSettings({ theme: newTheme });
   };
 
   // Auto-collapse sidebar on small screens
