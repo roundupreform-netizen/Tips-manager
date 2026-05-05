@@ -23,14 +23,14 @@ interface PenaltyManagerProps {
   permissions: Permissions;
 }
 
-const AUTHORITIES = ["Sameer Basnet", "Tej Bahadur Pariyar"];
-
 export default function PenaltyManager({ permissions }: PenaltyManagerProps) {
   const { data: penalties, loading: penaltiesLoading } = usePenalties();
   const { data: staff, loading: staffLoading } = useStaff();
   const [isAdding, setIsAdding] = useState(false);
   const [filterDate, setFilterDate] = useState('');
   const [filterStaff, setFilterStaff] = useState('');
+
+  const staffNames = staff.map(s => s.name);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -383,7 +383,7 @@ export default function PenaltyManager({ permissions }: PenaltyManagerProps) {
                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Checked By (Authority)</label>
                     <select
                       required
-                      value={AUTHORITIES.includes(formData.checkedBy) ? formData.checkedBy : (formData.checkedBy === "" ? "" : "manual")}
+                      value={staffNames.includes(formData.checkedBy) ? formData.checkedBy : (formData.checkedBy === "" ? "" : "manual")}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val === "manual") {
@@ -395,13 +395,15 @@ export default function PenaltyManager({ permissions }: PenaltyManagerProps) {
                       className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 font-bold text-slate-700 dark:text-slate-200"
                     >
                       <option value="" className="dark:bg-slate-900">Select Authority...</option>
-                      {AUTHORITIES.map(auth => (
-                        <option key={auth} value={auth} className="dark:bg-slate-900 font-bold">{auth} (Captain)</option>
+                      {staff.map(s => (
+                        <option key={s.id} value={s.name} className="dark:bg-slate-900 font-bold">
+                          {s.name} ({s.position})
+                        </option>
                       ))}
                       <option value="manual" className="dark:bg-slate-900 text-indigo-500 font-black">--- Manually add name ---</option>
                     </select>
 
-                    {(formData.checkedBy === "" || !AUTHORITIES.includes(formData.checkedBy)) && (
+                    {(formData.checkedBy === "" || !staffNames.includes(formData.checkedBy)) && (
                       <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}

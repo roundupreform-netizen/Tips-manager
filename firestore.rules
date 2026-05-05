@@ -55,5 +55,17 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+
+    // Collection: Deleted Staff
+    match /deleted_staff/{staffId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Collection: Staff Logs
+    match /staff_logs/{logId} {
+      allow read: if true;
+      allow create: if true;
+    }
   }
 }

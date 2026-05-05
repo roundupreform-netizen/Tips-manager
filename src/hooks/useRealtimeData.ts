@@ -36,6 +36,14 @@ export function useStaff() {
   return useRealtimeList<StaffMember>(COLLECTIONS.STAFF);
 }
 
+export function useDeletedStaff() {
+  return useRealtimeList<StaffMember & { deletedAt: any }>(COLLECTIONS.DELETED_STAFF);
+}
+
+export function useStaffLogs() {
+  return useRealtimeList<any>(COLLECTIONS.STAFF_LOGS);
+}
+
 export function useAdvances() {
   return useRealtimeList<AdvanceEntry>(COLLECTIONS.ADVANCES);
 }

@@ -18,7 +18,7 @@ import PayoutMatrix from './components/PayoutMatrix';
 import BackupRestore from './components/BackupRestore';
 import UserManager from './components/UserManager';
 
-import { Table, Moon, Sun } from 'lucide-react';
+import { Table, Moon, Sun, AlertCircle } from 'lucide-react';
 
 enum ActiveTab {
   Dashboard = 'dashboard',
@@ -35,12 +35,18 @@ export default function App() {
   const { data: appSettings, loading: settingsLoading } = useSettings();
   const [activeTab, setActiveTab] = useState<ActiveTab>(ActiveTab.Dashboard);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [user, setUser] = useState<User>(storage.getCurrentUser());
-  const [permissions, setPermissions] = useState<Permissions>(getDefaultPermissions(storage.getCurrentUser().role));
+  const [user] = useState<User>(storage.getCurrentUser());
+  const [permissions] = useState<Permissions>(getDefaultPermissions(storage.getCurrentUser().role));
 
-  const toggleTheme = () => {
-    const newTheme = appSettings.theme === 'light' ? 'dark' : 'light';
-    firestoreService.saveSettings({ theme: newTheme });
+  const toggleTheme = async () => {
+    try {
+      const newTheme = appSettings.theme === 'light' ? 'dark' : 'light';
+      await firestoreService.saveSettings({ theme: newTheme });
+    } catch (error: any) {
+      if (error.message?.includes('permission')) {
+        alert("Permission error. Check Firestore rules.");
+      }
+    }
   };
 
   // Auto-collapse sidebar on small screens
@@ -53,6 +59,17 @@ export default function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  if (settingsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Loading System...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(
@@ -103,6 +120,7 @@ export default function App() {
                   ? "bg-slate-800 border-slate-700 text-amber-400" 
                   : "bg-white border-slate-100 text-slate-400 hover:text-slate-900 shadow-sm"
               )}
+              title="Toggle Theme"
             >
               {appSettings.theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
