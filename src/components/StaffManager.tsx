@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StaffMember, Position, Permissions } from '../../types';
+import { StaffMember, Position, Permissions } from '../types';
 import { Plus, Edit2, Trash2, UserPlus, Users, ShieldAlert, Loader2, RotateCcw, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../../lib/utils';
-import { useStaff, useDeletedStaff } from '../../hooks/useRealtimeData';
-import { firestoreService } from '../../services/firestoreService';
+import { cn } from '../lib/utils';
+import { useStaff, useDeletedStaff } from '../hooks/useRealtimeData';
+import { firestoreService } from '../services/firestoreService';
 
 interface StaffManagerProps {
   permissions: Permissions;
@@ -25,21 +25,9 @@ export default function StaffManager({ permissions }: StaffManagerProps) {
     if (!formData.name || formData.points <= 0) return;
 
     if (isEditing) {
-      try {
-        await firestoreService.saveStaffMember(formData, isEditing);
-      } catch (error: any) {
-        if (error.message?.includes('permission')) {
-          alert("Permission error. Check Firestore rules.");
-        }
-      }
+      await firestoreService.saveStaffMember(formData, isEditing);
     } else {
-      try {
-        await firestoreService.saveStaffMember(formData);
-      } catch (error: any) {
-        if (error.message?.includes('permission')) {
-          alert("Permission error. Check Firestore rules.");
-        }
-      }
+      await firestoreService.saveStaffMember(formData);
     }
 
     setFormData({ name: '', position: Position.Steward, points: 1 });
@@ -60,13 +48,9 @@ export default function StaffManager({ permissions }: StaffManagerProps) {
     setDeletingId(id);
     try {
       await firestoreService.deleteStaffMember(id);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Delete failed:', error);
-      if (error.message?.includes('permission')) {
-        alert("Permission error. Check Firestore rules.");
-      } else {
-        alert('Failed to delete staff member. Please try again.');
-      }
+      alert('Failed to delete staff member. Please try again.');
     } finally {
       setDeletingId(null);
     }
@@ -79,12 +63,8 @@ export default function StaffManager({ permissions }: StaffManagerProps) {
     try {
       await firestoreService.deleteAllStaff();
       alert('All staff records have been deleted.');
-    } catch (error: any) {
-      if (error.message?.includes('permission')) {
-        alert("Permission error. Check Firestore rules.");
-      } else {
-        alert('Failed to delete all staff. Some records may remain.');
-      }
+    } catch (error) {
+      alert('Failed to delete all staff. Some records may remain.');
     }
   };
 
@@ -93,12 +73,8 @@ export default function StaffManager({ permissions }: StaffManagerProps) {
     setRestoringId(id);
     try {
       await firestoreService.restoreStaffMember(id);
-    } catch (error: any) {
-      if (error.message?.includes('permission')) {
-        alert("Permission error. Check Firestore rules.");
-      } else {
-        alert('Failed to restore staff member.');
-      }
+    } catch (error) {
+      alert('Failed to restore staff member.');
     } finally {
       setRestoringId(null);
     }
@@ -111,12 +87,8 @@ export default function StaffManager({ permissions }: StaffManagerProps) {
     setDeletingId(id);
     try {
       await firestoreService.permanentDeleteStaff(id);
-    } catch (error: any) {
-      if (error.message?.includes('permission')) {
-        alert("Permission error. Check Firestore rules.");
-      } else {
-        alert('Failed to permanently delete staff member.');
-      }
+    } catch (error) {
+      alert('Failed to permanently delete staff member.');
     } finally {
       setDeletingId(null);
     }

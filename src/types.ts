@@ -1,8 +1,12 @@
-export interface RoleConfig {
-  id: string;
-  name: string;
-  permissions: Permissions;
+export enum Position {
+  Captain = 'Captain',
+  Steward = 'Steward',
+  Bartender = 'Bartender',
+  Housekeeping = 'Housekeeping',
+  Cashier = 'Cashier'
 }
+
+export type Role = 'admin' | 'captain' | 'staff';
 
 export interface Permissions {
   canAddUser: boolean;
@@ -17,25 +21,16 @@ export interface Permissions {
   canSeeTotalCollection: boolean;
 }
 
-export enum Position {
-  Captain = 'Captain',
-  Steward = 'Steward',
-  Bartender = 'Bartender',
-  Housekeeping = 'Housekeeping',
-  Cashier = 'Cashier'
-}
-
-export type Role = 'admin' | 'manager' | 'staff';
-
-export interface UserProfile {
-  uid: string;
-  email: string | null;
-  displayName: string | null;
-  photoURL: string | null;
+export interface User {
+  id: string;
+  name: string;
+  username: string;
+  password: string;
   role: Role;
   active: boolean;
-  createdAt: any;
-  lastLogin: any;
+  permissions: Permissions;
+  avatar?: string;
+  createdAt: string;
 }
 
 export interface StaffMember {

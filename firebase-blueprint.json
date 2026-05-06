@@ -70,20 +70,21 @@
       "required": ["appName", "subtitle", "currency", "kitchenMode", "kitchenValue"]
     },
     "User": {
-      "title": "UserProfile",
-      "description": "App user synced with Firebase Auth",
+      "title": "User",
+      "description": "App user with role-based access",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
+        "username": { "type": "string" },
         "email": { "type": "string" },
         "displayName": { "type": "string" },
-        "photoURL": { "type": "string" },
-        "role": { "type": "string", "enum": ["admin", "manager", "staff"] },
+        "role": { "type": "string", "enum": ["admin", "captain", "steward", "cashier", "kitchen", "custom"] },
+        "userCode": { "type": "string", "description": "4-digit PIN" },
         "active": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "lastLogin": { "type": "string", "format": "date-time" }
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["uid", "role", "active"]
+      "required": ["uid", "username", "email", "role", "userCode", "active"]
     },
     "RoleConfig": {
       "title": "Role Config",
@@ -95,16 +96,15 @@
         "permissions": {
           "type": "object",
           "properties": {
-            "canAddUser": { "type": "boolean" },
-            "canEditUser": { "type": "boolean" },
-            "canDeleteUser": { "type": "boolean" },
-            "canEnableDisable": { "type": "boolean" },
-            "canAssignRole": { "type": "boolean" },
-            "canSetPassword": { "type": "boolean" },
-            "canSeeAllData": { "type": "boolean" },
-            "canSeeOwnProfile": { "type": "boolean" },
-            "canSeeOwnTips": { "type": "boolean" },
-            "canSeeTotalCollection": { "type": "boolean" }
+            "canAddStaff": { "type": "boolean" },
+            "canEditStaff": { "type": "boolean" },
+            "canDeleteStaff": { "type": "boolean" },
+            "canAddAdvance": { "type": "boolean" },
+            "canDeleteAdvance": { "type": "boolean" },
+            "canEditInventory": { "type": "boolean" },
+            "canViewReports": { "type": "boolean" },
+            "canEditSettings": { "type": "boolean" },
+            "canManageUsers": { "type": "boolean" }
           }
         }
       },

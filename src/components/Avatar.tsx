@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '../../lib/utils';
+import { cn } from '../lib/utils';
 
 interface AvatarProps {
   name: string;
@@ -24,7 +24,7 @@ export default function Avatar({ name, avatar, size = 'md', className }: AvatarP
   };
 
   const isColor = avatar?.startsWith('#');
-  const isImage = avatar?.startsWith('data:image') || avatar?.startsWith('http');
+  const isBase64 = avatar?.startsWith('data:image');
 
   return (
     <div 
@@ -38,7 +38,7 @@ export default function Avatar({ name, avatar, size = 'md', className }: AvatarP
         backgroundColor: isColor ? avatar : undefined,
       }}
     >
-      {isImage ? (
+      {isBase64 ? (
         <img 
           src={avatar} 
           alt={name} 

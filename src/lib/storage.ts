@@ -1,6 +1,8 @@
-import { StaffMember, AdvanceEntry, Denominations, AppSettings } from '../types';
+import { User, StaffMember, AdvanceEntry, Denominations, AppSettings, Role, Permissions } from '../types';
 
 const KEYS = {
+  USERS: 'tips_users',
+  CURRENT_USER: 'tips_current_user',
   STAFF: 'tips_staff',
   ADVANCES: 'tips_advances',
   INVENTORY: 'tips_inventory',
@@ -22,7 +24,97 @@ const AVATAR_COLORS = [
 
 export const getRandomAvatarColor = () => AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
 
+const INITIAL_ADMIN: User = {
+  id: 'admin_1',
+  name: 'Admin',
+  username: 'roundupreform@gmail.com',
+  password: 'Tip123@#4',
+  role: 'admin',
+  active: true,
+  permissions: {
+    canAddUser: true,
+    canEditUser: true,
+    canDeleteUser: true,
+    canEnableDisable: true,
+    canAssignRole: true,
+    canSetPassword: true,
+    canSeeAllData: true,
+    canSeeOwnProfile: true,
+    canSeeOwnTips: true,
+    canSeeTotalCollection: true,
+  },
+  avatar: AVATAR_COLORS[0],
+  createdAt: new Date().toISOString()
+};
+
+export const getDefaultPermissions = (role: Role): Permissions => {
+  const perms: Record<Role, Permissions> = {
+    admin: {
+      canAddUser: true,
+      canEditUser: true,
+      canDeleteUser: true,
+      canEnableDisable: true,
+      canAssignRole: true,
+      canSetPassword: true,
+      canSeeAllData: true,
+      canSeeOwnProfile: true,
+      canSeeOwnTips: true,
+      canSeeTotalCollection: true,
+    },
+    captain: {
+      canAddUser: true,
+      canEditUser: true,
+      canDeleteUser: true,
+      canEnableDisable: true,
+      canAssignRole: false, // Keep role assignment restricted to admin only
+      canSetPassword: true,
+      canSeeAllData: true,
+      canSeeOwnProfile: true,
+      canSeeOwnTips: true,
+      canSeeTotalCollection: true,
+    },
+    staff: {
+      canAddUser: false,
+      canEditUser: false,
+      canDeleteUser: false,
+      canEnableDisable: false,
+      canAssignRole: false,
+      canSetPassword: false,
+      canSeeAllData: false,
+      canSeeOwnProfile: true,
+      canSeeOwnTips: true,
+      canSeeTotalCollection: true,
+    }
+  };
+  return perms[role];
+};
+
 export const storage = {
+  // Users
+  getUsers: (): User[] => {
+    const data = localStorage.getItem(KEYS.USERS);
+    if (!data) {
+      const initial = [INITIAL_ADMIN];
+      localStorage.setItem(KEYS.USERS, JSON.stringify(initial));
+      return initial;
+    }
+    return JSON.parse(data);
+  },
+  saveUsers: (users: User[]) => localStorage.setItem(KEYS.USERS, JSON.stringify(users)),
+  
+  getCurrentUser: (): User => {
+    const data = localStorage.getItem(KEYS.CURRENT_USER);
+    if (!data) {
+      localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(INITIAL_ADMIN));
+      return INITIAL_ADMIN;
+    }
+    return JSON.parse(data);
+  },
+  setCurrentUser: (user: User | null) => {
+    // Keep it always saved or clear it if needed, but primary logic will use INITIAL_ADMIN if null
+    if (user) localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(user));
+  },
+
   // Staff
   getStaff: (): StaffMember[] => {
     const data = localStorage.getItem(KEYS.STAFF);

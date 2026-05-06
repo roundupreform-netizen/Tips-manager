@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '../lib/utils';
 
 export default function SyncStatus() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);

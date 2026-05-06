@@ -13,8 +13,8 @@ import {
   addDoc,
   serverTimestamp
 } from 'firebase/firestore';
-import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
-import { StaffMember, AdvanceEntry, PenaltyEntry, Denominations, AppSettings, UserProfile, RoleConfig } from '../types';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { User, StaffMember, AdvanceEntry, PenaltyEntry, Denominations, AppSettings } from '../types';
 
 export const COLLECTIONS = {
   STAFF: 'staff',
@@ -24,22 +24,18 @@ export const COLLECTIONS = {
   PENALTIES: 'penalties',
   INVENTORY: 'inventory',
   SETTINGS: 'settings',
-  USERS: 'users',
-  ROLES: 'roles'
+  USERS: 'users'
 };
 
 export const firestoreService = {
   // Audit Logs
   logAction: async (staffId: string, staffName: string, action: 'create' | 'update' | 'delete' | 'restore', oldData: any = null, newData: any = null) => {
     try {
-      const user = auth.currentUser;
-      const changedBy = user ? (user.displayName || user.email || user.uid) : 'System/Anonymous';
-
       await addDoc(collection(db, COLLECTIONS.STAFF_LOGS), {
         staffId,
         staffName,
         action,
-        changedBy,
+        changedBy: 'Admin', // Placeholder as requested
         timestamp: serverTimestamp(),
         changes: {
           oldData,
@@ -57,9 +53,6 @@ export const firestoreService = {
       const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
       callback(items);
     }, (error) => {
-      if (error.message?.toLowerCase().includes('permission')) {
-        alert("Permission error. Check Firestore rules.");
-      }
       handleFirestoreError(error, OperationType.LIST, collectionName);
     });
   },
@@ -73,9 +66,6 @@ export const firestoreService = {
         callback(null);
       }
     }, (error) => {
-      if (error.message?.toLowerCase().includes('permission')) {
-        alert("Permission error. Check Firestore rules.");
-      }
       handleFirestoreError(error, OperationType.GET, `${collectionName}/${docId}`);
     });
   },
@@ -107,6 +97,7 @@ export const firestoreService = {
   },
   deleteStaffMember: async (id: string) => {
     try {
+      // Soft delete: Move to deleted_staff
       const snap = await getDoc(doc(db, COLLECTIONS.STAFF, id));
       if (snap.exists()) {
         const staffData = snap.data();
@@ -228,28 +219,29 @@ export const firestoreService = {
     }
   },
 
-  // Users Management
-  saveUserProfile: async (profile: UserProfile) => {
+  // Users
+  getUsers: async (): Promise<User[]> => {
     try {
-      await setDoc(doc(db, COLLECTIONS.USERS, profile.uid), profile, { merge: true });
+      const snap = await getDocs(collection(db, COLLECTIONS.USERS));
+      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, COLLECTIONS.USERS);
+      return [];
+    }
+  },
+  saveUser: async (user: User) => {
+    try {
+      const { id, ...data } = user;
+      await setDoc(doc(db, COLLECTIONS.USERS, id), data);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, COLLECTIONS.USERS);
     }
   },
-  deleteUserProfile: async (uid: string) => {
+  deleteUser: async (id: string) => {
     try {
-      await deleteDoc(doc(db, COLLECTIONS.USERS, uid));
+      await deleteDoc(doc(db, COLLECTIONS.USERS, id));
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `${COLLECTIONS.USERS}/${uid}`);
-    }
-  },
-
-  // Roles
-  saveRole: async (role: RoleConfig) => {
-    try {
-      await setDoc(doc(db, COLLECTIONS.ROLES, role.id), role);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, COLLECTIONS.ROLES);
+      handleFirestoreError(error, OperationType.DELETE, `${COLLECTIONS.USERS}/${id}`);
     }
   }
 };

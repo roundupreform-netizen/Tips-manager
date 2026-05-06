@@ -10,11 +10,11 @@ import {
   Check,
   Lock
 } from 'lucide-react';
-import { AppSettings, Permissions } from '../../types';
+import { AppSettings, Permissions } from '../types';
 import { motion } from 'motion/react';
-import { cn } from '../../lib/utils';
-import { useSettings, useUsers, useStaff, useAdvances, useInventory } from '../../hooks/useRealtimeData';
-import { firestoreService } from '../../services/firestoreService';
+import { cn } from '../lib/utils';
+import { useSettings, useUsers, useStaff, useAdvances, useInventory } from '../hooks/useRealtimeData';
+import { firestoreService } from '../services/firestoreService';
 import { Loader2 } from 'lucide-react';
 
 interface BackupRestoreProps {
