@@ -1,4 +1,5 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
     // Default Deny
@@ -8,52 +9,19 @@ service cloud.firestore {
 
     // Global Helpers
     function isSignedIn() { return request.auth != null; }
-    function isValidId(id) { return id is string && id.size() <= 128; }
-    function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
 
-    // Collection: Penalties
-    match /penalties/{penaltyId} {
-      allow read: if true;
-      allow create: if true && 
-        isValidId(penaltyId) &&
-        incoming().amount is number && 
-        incoming().amount >= 0 &&
-        incoming().staffName is string &&
-        incoming().reason is string &&
-        incoming().checkedBy is string;
-      allow update: if false; // Penalties are immutable in this flow
-      allow delete: if true; // Allow delete without auth as it's an internal tool
-    }
+    // This application uses a local-to-cloud migration strategy on first run.
+    // To support initial setup, the following rules allow unauthenticated writes.
+    // It is RECOMMENDED to enable Firebase Auth and restrict these rules later.
 
-    // Collection: Staff
-    match /staff/{staffId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // Collection: Advances
-    match /advances/{advanceId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // Collection: Inventory
-    match /inventory/{docId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // Collection: Settings
-    match /settings/{docId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // Collection: Users
-    match /users/{userId} {
-      allow read: if true;
-      allow write: if true;
-    }
+    match /staff/{docId} { allow read, write: if true; }
+    match /deleted_staff/{docId} { allow read, write: if true; }
+    match /staff_logs/{docId} { allow read, write: if true; }
+    match /advances/{docId} { allow read, write: if true; }
+    match /penalties/{docId} { allow read, write: if true; }
+    match /inventory/{docId} { allow read, write: if true; }
+    match /settings/{docId} { allow read, write: if true; }
+    match /users/{docId} { allow read, write: if true; }
+    match /roles/{docId} { allow read, write: if true; }
   }
 }

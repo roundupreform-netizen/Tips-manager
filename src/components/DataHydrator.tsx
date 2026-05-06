@@ -13,11 +13,15 @@ export default function DataHydrator({ children }: { children: React.ReactNode }
   useEffect(() => {
     const hydrate = async () => {
       try {
+        // Wait a bit for Firestore initialization
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         // 1. Check if we have already migrated (using a flag in localStorage)
         const migrationKey = `tips_migrated_v${APP_VERSION}`;
         const hasMigrated = localStorage.getItem(migrationKey);
 
         if (!hasMigrated) {
+          console.log('Starting migration to Firestore...');
           setStatus('Synchronizing local data to cloud...');
           
           // Staff Migration
