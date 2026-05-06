@@ -14,7 +14,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
-import { User, StaffMember, AdvanceEntry, PenaltyEntry, Denominations, AppSettings } from '../types';
+import { StaffMember, AdvanceEntry, PenaltyEntry, Denominations, AppSettings, UserProfile, RoleConfig } from '../types';
 
 export const COLLECTIONS = {
   STAFF: 'staff',
@@ -24,7 +24,8 @@ export const COLLECTIONS = {
   PENALTIES: 'penalties',
   INVENTORY: 'inventory',
   SETTINGS: 'settings',
-  USERS: 'users'
+  USERS: 'users',
+  ROLES: 'roles'
 };
 
 export const firestoreService = {
@@ -106,7 +107,6 @@ export const firestoreService = {
   },
   deleteStaffMember: async (id: string) => {
     try {
-      // Soft delete: Move to deleted_staff
       const snap = await getDoc(doc(db, COLLECTIONS.STAFF, id));
       if (snap.exists()) {
         const staffData = snap.data();
@@ -228,29 +228,28 @@ export const firestoreService = {
     }
   },
 
-  // Users
-  getUsers: async (): Promise<User[]> => {
+  // Users Management
+  saveUserProfile: async (profile: UserProfile) => {
     try {
-      const snap = await getDocs(collection(db, COLLECTIONS.USERS));
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, COLLECTIONS.USERS);
-      return [];
-    }
-  },
-  saveUser: async (user: User) => {
-    try {
-      const { id, ...data } = user;
-      await setDoc(doc(db, COLLECTIONS.USERS, id), data);
+      await setDoc(doc(db, COLLECTIONS.USERS, profile.uid), profile, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, COLLECTIONS.USERS);
     }
   },
-  deleteUser: async (id: string) => {
+  deleteUserProfile: async (uid: string) => {
     try {
-      await deleteDoc(doc(db, COLLECTIONS.USERS, id));
+      await deleteDoc(doc(db, COLLECTIONS.USERS, uid));
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `${COLLECTIONS.USERS}/${id}`);
+      handleFirestoreError(error, OperationType.DELETE, `${COLLECTIONS.USERS}/${uid}`);
+    }
+  },
+
+  // Roles
+  saveRole: async (role: RoleConfig) => {
+    try {
+      await setDoc(doc(db, COLLECTIONS.ROLES, role.id), role);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, COLLECTIONS.ROLES);
     }
   }
 };

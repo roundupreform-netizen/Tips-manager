@@ -6,66 +6,90 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Global Helpers
+    // --- GLOBAL HELPERS ---
     function isSignedIn() { return request.auth != null; }
-    function isValidId(id) { return id is string && id.size() <= 128; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-
-    // Collection: Penalties
-    match /penalties/{penaltyId} {
-      allow read: if true;
-      allow create: if true && 
-        isValidId(penaltyId) &&
-        incoming().amount is number && 
-        incoming().amount >= 0 &&
-        incoming().staffName is string &&
-        incoming().reason is string &&
-        incoming().checkedBy is string;
-      allow update: if false; // Penalties are immutable in this flow
-      allow delete: if true; // Allow delete without auth as it's an internal tool
+    
+    // Role Checks (using user profile in Firestore)
+    function getProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function hasProfile() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function isAdmin() {
+      return hasProfile() && getProfile().role == 'admin' && getProfile().active == true;
+    }
+    function isManager() {
+      return hasProfile() && (getProfile().role == 'manager' || getProfile().role == 'admin') && getProfile().active == true;
+    }
+    function isStaff() {
+      return hasProfile() && getProfile().active == true;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Collection: Staff
+    // --- COLLECTIONS ---
+
+    // Collection: Users
+    match /users/{userId} {
+      allow get: if isStaff() || isOwner(userId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isAdmin() || (isOwner(userId) && incoming().role == existing().role);
+      allow delete: if isAdmin();
+    }
+
+    // Collection: Staff (Roster)
     match /staff/{staffId} {
-      allow read: if true;
-      allow write: if true;
+      allow read: if isSignedIn();
+      allow write: if isManager();
+    }
+
+    // Collection: Deleted Staff (Archives)
+    match /deleted_staff/{staffId} {
+      allow read: if isManager();
+      allow write: if isManager();
     }
 
     // Collection: Advances
     match /advances/{advanceId} {
-      allow read: if true;
-      allow write: if true;
+      allow read: if isStaff();
+      allow write: if isManager();
+    }
+
+    // Collection: Penalties
+    match /penalties/{penaltyId} {
+      allow read: if isStaff();
+      allow create: if isManager();
+      allow delete: if isManager();
     }
 
     // Collection: Inventory
     match /inventory/{docId} {
-      allow read: if true;
-      allow write: if true;
+      allow read: if isSignedIn();
+      allow write: if isManager();
     }
 
     // Collection: Settings
     match /settings/{docId} {
-      allow read: if true;
-      allow write: if true;
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
-    // Collection: Users
-    match /users/{userId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // Collection: Deleted Staff
-    match /deleted_staff/{staffId} {
-      allow read: if true;
-      allow write: if true;
+    // Collection: Roles
+    match /roles/{roleId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // Collection: Staff Logs
     match /staff_logs/{logId} {
-      allow read: if true;
-      allow create: if true;
+      allow read: if isManager();
+      allow create: if isStaff();
     }
   }
 }

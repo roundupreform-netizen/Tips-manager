@@ -1,17 +1,51 @@
 import { useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import { firestoreService, COLLECTIONS } from '../services/firestoreService';
-import { StaffMember, AdvanceEntry, PenaltyEntry, Denominations, AppSettings, User } from '../types';
+import { StaffMember, AdvanceEntry, PenaltyEntry, Denominations, AppSettings, UserProfile, RoleConfig } from '../types';
 
 export function useRealtimeList<T>(collectionName: string) {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = firestoreService.subscribeToList<T>(collectionName, (newData) => {
-      setData(newData);
-      setLoading(false);
+    let unsubscribe: (() => void) | undefined;
+
+    const setupSubscription = () => {
+      // Small delay to ensure Firestore SDK has internal auth token ready
+      const timeoutId = setTimeout(() => {
+        if (!auth.currentUser) {
+          setData([]);
+          setLoading(false);
+          return;
+        }
+
+        unsubscribe = firestoreService.subscribeToList<T>(collectionName, (newData) => {
+          setData(newData);
+          setLoading(false);
+        });
+      }, 50);
+      return () => clearTimeout(timeoutId);
+    };
+
+    const authUnsubscribe = onAuthStateChanged(auth, (user) => {
+      if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = undefined;
+      }
+
+      if (user) {
+        setupSubscription();
+      } else {
+        setData([]);
+        setLoading(false);
+      }
     });
-    return () => unsubscribe();
+
+    return () => {
+      authUnsubscribe();
+      if (unsubscribe) unsubscribe();
+    };
   }, [collectionName]);
 
   return { data, loading };
@@ -22,11 +56,40 @@ export function useRealtimeDoc<T>(collectionName: string, docId: string, default
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = firestoreService.subscribeToDoc<T>(collectionName, docId, (newData) => {
-      if (newData) setData(newData);
-      setLoading(false);
+    let unsubscribe: (() => void) | undefined;
+
+    const setupSubscription = () => {
+      const timeoutId = setTimeout(() => {
+        if (!auth.currentUser) {
+          setLoading(false);
+          return;
+        }
+
+        unsubscribe = firestoreService.subscribeToDoc<T>(collectionName, docId, (newData) => {
+          if (newData) setData(newData);
+          setLoading(false);
+        });
+      }, 50);
+      return () => clearTimeout(timeoutId);
+    };
+
+    const authUnsubscribe = onAuthStateChanged(auth, (user) => {
+      if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = undefined;
+      }
+
+      if (user) {
+        setupSubscription();
+      } else {
+        setLoading(false);
+      }
     });
-    return () => unsubscribe();
+
+    return () => {
+      authUnsubscribe();
+      if (unsubscribe) unsubscribe();
+    };
   }, [collectionName, docId]);
 
   return { data, loading };
@@ -69,5 +132,9 @@ export function useSettings() {
 }
 
 export function useUsers() {
-  return useRealtimeList<User>(COLLECTIONS.USERS);
+  return useRealtimeList<UserProfile>(COLLECTIONS.USERS);
+}
+
+export function useRoles() {
+  return useRealtimeList<RoleConfig>(COLLECTIONS.ROLES);
 }

@@ -5,7 +5,7 @@ import {
   PenaltyEntry,
   Denominations, 
   AppSettings,
-  User,
+  UserProfile,
   Permissions
 } from '../types';
 import { Share2, Copy, FileText, Download, Lock, TrendingDown } from 'lucide-react';
@@ -16,7 +16,7 @@ import { Loader2 } from 'lucide-react';
 import Avatar from './Avatar';
 
 interface PayoutMatrixProps {
-  user: User;
+  user: UserProfile;
   permissions: Permissions;
 }
 
@@ -53,7 +53,7 @@ export default function PayoutMatrix({ user, permissions }: PayoutMatrixProps) {
     if (!permissions.canSeeAllData) {
       if (permissions.canSeeOwnTips) {
         // Only show their own record
-        filteredStaff = staff.filter(s => s.name.toLowerCase() === user.name.toLowerCase());
+        filteredStaff = staff.filter(s => s.name.toLowerCase() === (user.displayName || '').toLowerCase());
       } else {
         // No permission to see tips
         return [];
@@ -145,7 +145,7 @@ export default function PayoutMatrix({ user, permissions }: PayoutMatrixProps) {
                   <div className="flex items-center gap-3">
                     <Avatar 
                       name={data.name} 
-                      avatar={users.find(u => u.name.toLowerCase() === data.name.toLowerCase())?.avatar} 
+                      avatar={users.find(u => (u.displayName || '').toLowerCase() === data.name.toLowerCase())?.photoURL || undefined} 
                       size="sm" 
                     />
                     <div className="flex flex-col">

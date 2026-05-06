@@ -24,7 +24,7 @@ export default function Avatar({ name, avatar, size = 'md', className }: AvatarP
   };
 
   const isColor = avatar?.startsWith('#');
-  const isBase64 = avatar?.startsWith('data:image');
+  const isImage = avatar?.startsWith('data:image') || avatar?.startsWith('http');
 
   return (
     <div 
@@ -38,7 +38,7 @@ export default function Avatar({ name, avatar, size = 'md', className }: AvatarP
         backgroundColor: isColor ? avatar : undefined,
       }}
     >
-      {isBase64 ? (
+      {isImage ? (
         <img 
           src={avatar} 
           alt={name} 

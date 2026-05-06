@@ -1,11 +1,16 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-import { storage, getDefaultPermissions } from './lib/storage';
 import { firestoreService } from './services/firestoreService';
-import { useSettings } from './hooks/useRealtimeData';
-import { User, AppSettings, Permissions } from './types';
+import { useSettings, useRoles } from './hooks/useRealtimeData';
+import { AppSettings, Role, Permissions, UserProfile, RoleConfig } from './types';
+
+// Auth
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import LoginPage from './components/LoginPage';
 
 // Components
 import Sidebar from './components/Sidebar';
@@ -18,7 +23,7 @@ import PayoutMatrix from './components/PayoutMatrix';
 import BackupRestore from './components/BackupRestore';
 import UserManager from './components/UserManager';
 
-import { Table, Moon, Sun, AlertCircle } from 'lucide-react';
+import { Table, Moon, Sun, LogOut } from 'lucide-react';
 
 enum ActiveTab {
   Dashboard = 'dashboard',
@@ -31,12 +36,14 @@ enum ActiveTab {
   Settings = 'settings'
 }
 
-export default function App() {
+function MainApp() {
   const { data: appSettings, loading: settingsLoading } = useSettings();
+  const { data: roles, loading: rolesLoading } = useRoles();
+  const { user, profile, loading: authLoading, logout, isAdmin, isManager } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>(ActiveTab.Dashboard);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [user] = useState<User>(storage.getCurrentUser());
-  const [permissions] = useState<Permissions>(getDefaultPermissions(storage.getCurrentUser().role));
+
+  const loading = settingsLoading || authLoading || rolesLoading || (user && !profile);
 
   const toggleTheme = async () => {
     try {
@@ -60,16 +67,35 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (settingsLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Loading System...</p>
+          <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-600 rounded-full animate-spin"></div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Synchronizing Matrix...</p>
         </div>
       </div>
     );
   }
+
+  // Get dynamic permissions for the user's role
+  const userRole = profile?.role || 'staff';
+  const roleConfig = roles.find(r => r.name === userRole);
+  
+  const permissions: Permissions = roleConfig?.permissions || {
+    canAddUser: false,
+    canEditUser: false,
+    canDeleteUser: false,
+    canEnableDisable: false,
+    canAssignRole: false,
+    canSetPassword: false,
+    canSeeAllData: false,
+    canSeeOwnProfile: true,
+    canSeeOwnTips: true,
+    canSeeTotalCollection: false,
+  };
+
+  const safeProfile = profile as UserProfile;
 
   return (
     <div className={cn(
@@ -83,7 +109,7 @@ export default function App() {
         setIsCollapsed={setIsCollapsed}
         appName={appSettings.appName}
         subtitle={appSettings.subtitle}
-        user={user}
+        user={safeProfile}
         permissions={permissions}
       />
 
@@ -124,8 +150,20 @@ export default function App() {
             >
               {appSettings.theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
+            <button 
+              onClick={logout}
+              className={cn(
+                "p-2.5 rounded-xl transition-all border",
+                appSettings.theme === 'dark' 
+                  ? "bg-slate-800 border-slate-700 text-rose-400" 
+                  : "bg-white border-slate-100 text-slate-400 hover:text-rose-600 shadow-sm"
+              )}
+              title="Logout"
+            >
+              <LogOut size={20} />
+            </button>
             <div className={cn(
-              "px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider",
+              "hidden sm:block px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider",
               appSettings.theme === 'dark' ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"
             )}>
               {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
@@ -144,9 +182,9 @@ export default function App() {
             >
               {activeTab === ActiveTab.Dashboard && (
                 <div className="space-y-8">
-                  <EarningsCalculator permissions={permissions!} />
+                  <EarningsCalculator permissions={permissions} />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <TipBoxInventory permissions={permissions!} />
+                    <TipBoxInventory permissions={permissions} />
                     <div className="bg-indigo-600 p-8 rounded-[2.5rem] text-white flex flex-col justify-between shadow-xl shadow-indigo-200/20">
                       <div className="space-y-4">
                         <Table className="w-12 h-12 opacity-50" />
@@ -163,17 +201,37 @@ export default function App() {
                   </div>
                 </div>
               )}
-              {activeTab === ActiveTab.Staff && <StaffManager permissions={permissions!} />}
-              {activeTab === ActiveTab.Advances && <AdvanceManager permissions={permissions!} />}
-              {activeTab === ActiveTab.Penalties && <PenaltyManager permissions={permissions!} />}
-              {activeTab === ActiveTab.Inventory && <TipBoxInventory permissions={permissions!} />}
-              {activeTab === ActiveTab.Payouts && <PayoutMatrix user={user} permissions={permissions!} />}
-              {activeTab === ActiveTab.Users && <UserManager permissions={permissions!} />}
-              {activeTab === ActiveTab.Settings && <BackupRestore permissions={permissions!} />}
+              {activeTab === ActiveTab.Staff && <StaffManager permissions={permissions} />}
+              {activeTab === ActiveTab.Advances && <AdvanceManager permissions={permissions} />}
+              {activeTab === ActiveTab.Penalties && <PenaltyManager permissions={permissions} />}
+              {activeTab === ActiveTab.Inventory && <TipBoxInventory permissions={permissions} />}
+              {activeTab === ActiveTab.Payouts && <PayoutMatrix user={safeProfile} permissions={permissions} />}
+              {activeTab === ActiveTab.Users && <UserManager permissions={permissions} />}
+              {activeTab === ActiveTab.Settings && <BackupRestore permissions={permissions} />}
             </motion.div>
           </AnimatePresence>
         </main>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route 
+            path="/*" 
+            element={
+              <ProtectedRoute>
+                <MainApp />
+              </ProtectedRoute>
+            } 
+          />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

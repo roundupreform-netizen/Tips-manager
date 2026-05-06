@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
-import { User, Permissions } from '../types';
+import { UserProfile } from '../types';
 import Avatar from './Avatar';
 
 interface SidebarProps {
@@ -24,8 +24,11 @@ interface SidebarProps {
   setIsCollapsed: (collapsed: boolean) => void;
   appName: string;
   subtitle: string;
-  user: User;
-  permissions: Permissions;
+  user: UserProfile;
+  permissions: {
+    canSeeAllData: boolean;
+    canSeeOwnTips: boolean;
+  };
 }
 
 export default function Sidebar({ activeTab, onTabChange, isCollapsed, setIsCollapsed, appName, subtitle, user, permissions }: SidebarProps) {
@@ -90,19 +93,18 @@ export default function Sidebar({ activeTab, onTabChange, isCollapsed, setIsColl
         ))}
       </nav>
 
-      {/* Admin Info */}
-      <div className="p-4 border-t border-slate-800/50">
+    <div className="p-4 border-t border-slate-800/50">
         {!isCollapsed ? (
           <div className="px-4 py-3 bg-slate-800/30 rounded-2xl flex items-center gap-3 border border-slate-700/30">
-            <Avatar name={user.name} avatar={user.avatar} size="sm" className="rounded-lg" />
+            <Avatar name={user.displayName || 'User'} avatar={user.photoURL} size="sm" className="rounded-lg" />
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-xs text-white truncate">{user.name}</p>
+              <p className="font-bold text-xs text-white truncate">{user.displayName || 'User'}</p>
               <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">{user.role}</p>
             </div>
           </div>
         ) : (
           <div className="flex justify-center py-2">
-            <Avatar name={user.name} avatar={user.avatar} size="sm" className="rounded-lg" />
+            <Avatar name={user.displayName || 'User'} avatar={user.photoURL} size="sm" className="rounded-lg" />
           </div>
         )}
       </div>
