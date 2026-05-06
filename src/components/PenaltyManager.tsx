@@ -129,7 +129,7 @@ export default function PenaltyManager({ permissions }: PenaltyManagerProps) {
                 Object.entries(staffSummary).map(([name, amount], i) => (
                   <div key={i} className="px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center gap-3 group hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all">
                     <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-[10px]">
-                      {name.charAt(0)}
+                      {(name || '?').charAt(0)}
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight leading-none mb-1">{name}</p>
@@ -226,9 +226,9 @@ export default function PenaltyManager({ permissions }: PenaltyManagerProps) {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 flex items-center justify-center font-black text-[10px]">
-                          {penalty.staffName.charAt(0)}
+                          {(penalty.staffName || '?').charAt(0)}
                         </div>
-                        <span className="font-extrabold text-slate-800 dark:text-slate-200">{penalty.staffName}</span>
+                        <span className="font-extrabold text-slate-800 dark:text-slate-200">{penalty.staffName || 'Unknown Staff'}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">

@@ -136,8 +136,8 @@ export default function UserManager({ permissions: currentUserPermissions }: Use
   };
 
   const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.username.toLowerCase().includes(searchTerm.toLowerCase())
+    (u.name || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+    (u.username || '').toLowerCase().includes((searchTerm || '').toLowerCase())
   );
 
   const togglePermission = (key: keyof Permissions) => {

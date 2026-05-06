@@ -249,7 +249,7 @@ export default function StaffManager({ permissions }: StaffManagerProps) {
                 <div key={s.id} className="flex items-center justify-between bg-white dark:bg-slate-800 p-3 rounded-xl border border-amber-100 dark:border-amber-900/30 shadow-sm overflow-hidden">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black text-xs">
-                      {s.name.charAt(0)}
+                      {(s.name || '?').charAt(0)}
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{s.name}</p>
@@ -306,7 +306,7 @@ export default function StaffManager({ permissions }: StaffManagerProps) {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs">
-                          {member.name.charAt(0)}
+                          {(member.name || '?').charAt(0)}
                         </div>
                         <span className="font-bold text-slate-700 dark:text-slate-200">{member.name}</span>
                       </div>

@@ -46,8 +46,8 @@ export default function AdvanceManager({ permissions }: AdvanceManagerProps) {
 
   const filteredAdvances = useMemo(() => {
     return advances.filter(adv => 
-      adv.staffName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      adv.position.toLowerCase().includes(searchTerm.toLowerCase())
+      (adv.staffName || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+      (adv.position || '').toLowerCase().includes((searchTerm || '').toLowerCase())
     );
   }, [advances, searchTerm]);
 
@@ -184,7 +184,7 @@ export default function AdvanceManager({ permissions }: AdvanceManagerProps) {
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 flex items-center justify-center font-black text-xs group-hover:bg-indigo-600 dark:group-hover:bg-indigo-500 group-hover:text-white transition-all">
-                                {adv.staffName.charAt(0)}
+                                {(adv.staffName || '?').charAt(0)}
                               </div>
                               <div className="flex flex-col">
                                 <span className="font-bold text-slate-800 dark:text-white">{adv.staffName}</span>

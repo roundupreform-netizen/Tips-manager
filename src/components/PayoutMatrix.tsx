@@ -53,7 +53,7 @@ export default function PayoutMatrix({ user, permissions }: PayoutMatrixProps) {
     if (!permissions.canSeeAllData) {
       if (permissions.canSeeOwnTips) {
         // Only show their own record
-        filteredStaff = staff.filter(s => s.name.toLowerCase() === user.name.toLowerCase());
+        filteredStaff = staff.filter(s => (s.name || '').toLowerCase() === (user.name || '').toLowerCase());
       } else {
         // No permission to see tips
         return [];
@@ -145,7 +145,7 @@ export default function PayoutMatrix({ user, permissions }: PayoutMatrixProps) {
                   <div className="flex items-center gap-3">
                     <Avatar 
                       name={data.name} 
-                      avatar={users.find(u => u.name.toLowerCase() === data.name.toLowerCase())?.avatar} 
+                      avatar={users.find(u => (u.name || '').toLowerCase() === (data.name || '').toLowerCase())?.avatar} 
                       size="sm" 
                     />
                     <div className="flex flex-col">
