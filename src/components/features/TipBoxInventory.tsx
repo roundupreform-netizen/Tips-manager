@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Denominations, Permissions } from '../types';
+import { Denominations, Permissions } from '../../types';
 import { Banknote, Calculator, Save, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
-import { cn } from '../lib/utils';
-import { useInventory } from '../hooks/useRealtimeData';
-import { firestoreService } from '../services/firestoreService';
+import { cn } from '../../lib/utils';
+import { useInventory } from '../../hooks/useRealtimeData';
+import { firestoreService } from '../../services/firestoreService';
 import { Loader2 } from 'lucide-react';
 
 const DENOM_LABELS = [500, 200, 100, 50, 20, 10, 5] as const;

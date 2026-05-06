@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StaffMember, Position, Permissions } from '../types';
+import { StaffMember, Position, Permissions } from '../../types';
 import { Plus, Edit2, Trash2, UserPlus, Users, ShieldAlert, Loader2, RotateCcw, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
-import { useStaff, useDeletedStaff } from '../hooks/useRealtimeData';
-import { firestoreService } from '../services/firestoreService';
+import { cn } from '../../lib/utils';
+import { useStaff, useDeletedStaff } from '../../hooks/useRealtimeData';
+import { firestoreService } from '../../services/firestoreService';
 
 interface StaffManagerProps {
   permissions: Permissions;

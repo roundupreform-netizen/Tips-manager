@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { Role } from '../types';
+import { useAuth } from '../../contexts/AuthContext';
+import { Role } from '../../types';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -30,6 +30,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
     const userRole = profile?.role;
 
+    console.log('[ProtectedRoute] Required Roles:', roles);
+    console.log('[ProtectedRoute] User Role:', userRole);
+    console.log('[ProtectedRoute] Profile:', profile);
+
     // RBAC Hierarchy
     const roleHierarchy: Record<Role, number> = {
       admin: 3,
@@ -40,6 +44,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     const hasPermission = roles.some(role => {
       const requiredLevel = roleHierarchy[role];
       const userLevel = userRole ? roleHierarchy[userRole] : 0;
+      console.log(`[ProtectedRoute] Checking ${role}: reqLevel=${requiredLevel}, userLevel=${userLevel}`);
       return userLevel >= requiredLevel;
     });
 

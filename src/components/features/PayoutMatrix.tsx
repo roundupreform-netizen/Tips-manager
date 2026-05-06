@@ -7,13 +7,13 @@ import {
   AppSettings,
   UserProfile,
   Permissions
-} from '../types';
+} from '../../types';
 import { Share2, Copy, FileText, Download, Lock, TrendingDown } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import { motion } from 'motion/react';
-import { useStaff, useAdvances, usePenalties, useInventory, useSettings, useUsers } from '../hooks/useRealtimeData';
+import { useStaff, useAdvances, usePenalties, useInventory, useSettings, useUsers } from '../../hooks/useRealtimeData';
 import { Loader2 } from 'lucide-react';
-import Avatar from './Avatar';
+import Avatar from '../common/Avatar';
 
 interface PayoutMatrixProps {
   user: UserProfile;

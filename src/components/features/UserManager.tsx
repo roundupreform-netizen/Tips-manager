@@ -13,11 +13,11 @@ import {
   Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
-import { useUsers, useRoles } from '../hooks/useRealtimeData';
-import { firestoreService } from '../services/firestoreService';
-import { UserProfile, Role, Permissions, RoleConfig } from '../types';
-import Avatar from './Avatar';
+import { cn } from '../../lib/utils';
+import { useUsers, useRoles } from '../../hooks/useRealtimeData';
+import { firestoreService } from '../../services/firestoreService';
+import { UserProfile, Role, Permissions, RoleConfig } from '../../types';
+import Avatar from '../common/Avatar';
 
 interface UserManagerProps {
   permissions: Permissions;

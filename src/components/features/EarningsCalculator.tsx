@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { StaffMember, AdvanceEntry, PenaltyEntry, AppSettings, Permissions } from '../types';
+import { StaffMember, AdvanceEntry, PenaltyEntry, AppSettings, Permissions } from '../../types';
 import { 
   Plus, 
   TrendingUp, 
@@ -10,9 +10,9 @@ import {
   Lock,
   AlertCircle
 } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { useStaff, useAdvances, usePenalties, useSettings, useInventory } from '../hooks/useRealtimeData';
-import { firestoreService } from '../services/firestoreService';
+import { cn } from '../../lib/utils';
+import { useStaff, useAdvances, usePenalties, useSettings, useInventory } from '../../hooks/useRealtimeData';
+import { firestoreService } from '../../services/firestoreService';
 import { Loader2 } from 'lucide-react';
 
 interface EarningsCalculatorProps {

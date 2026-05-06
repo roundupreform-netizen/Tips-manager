@@ -13,9 +13,9 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { cn } from '../lib/utils';
-import { UserProfile } from '../types';
-import Avatar from './Avatar';
+import { cn } from '../../lib/utils';
+import { UserProfile } from '../../types';
+import Avatar from '../common/Avatar';
 
 interface SidebarProps {
   activeTab: string;

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { AdvanceEntry, StaffMember, Permissions } from '../types';
+import { AdvanceEntry, StaffMember, Permissions } from '../../types';
 import { Search, Plus, Trash2, Calendar, IndianRupee, Filter, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
-import { useAdvances, useStaff } from '../hooks/useRealtimeData';
-import { firestoreService } from '../services/firestoreService';
+import { cn } from '../../lib/utils';
+import { useAdvances, useStaff } from '../../hooks/useRealtimeData';
+import { firestoreService } from '../../services/firestoreService';
 import { Loader2 } from 'lucide-react';
 
 interface AdvanceManagerProps {

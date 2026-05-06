@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StaffMember, PenaltyEntry, Permissions } from '../types';
+import { StaffMember, PenaltyEntry, Permissions } from '../../types';
 import { 
   Plus, 
   Trash2, 
@@ -13,9 +13,9 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
-import { usePenalties, useStaff } from '../hooks/useRealtimeData';
-import { firestoreService } from '../services/firestoreService';
+import { cn } from '../../lib/utils';
+import { usePenalties, useStaff } from '../../hooks/useRealtimeData';
+import { firestoreService } from '../../services/firestoreService';
 import { Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
